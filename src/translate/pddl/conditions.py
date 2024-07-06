@@ -153,6 +153,14 @@ class Disjunction(JunctorCondition):
             return Falsity()
         if len(result_parts) == 1:
             return result_parts[0]
+        # Simplify any tautologies
+        atoms = set()
+        for part in result_parts:
+            if not is_atomic(part):
+                continue
+            if part.negate() in atoms:
+                return Truth()
+            atoms.add(part)
         return Disjunction(result_parts)
     def negate(self):
         return Conjunction([p.negate() for p in self.parts])
@@ -296,3 +304,7 @@ class NegatedAtom(Literal):
     def negate(self):
         return Atom(self.predicate, self.args)
     positive = negate
+
+
+def is_atomic(condition: Condition):
+    return isinstance(condition, Atom) or isinstance(condition, NegatedAtom)
