@@ -30,6 +30,9 @@ class Action:
     def __repr__(self):
         return "<Action %r at %#x>" % (self.name, id(self))
 
+    def effect_hash(self):
+        return hash(tuple(self.effects))
+
     def dump(self):
         print("%s(%s)" % (self.name, ", ".join(map(str, self.parameters))))
         print("Precondition:")
@@ -128,6 +131,11 @@ class PropositionalAction:
 
     def __repr__(self):
         return "<PropositionalAction %r at %#x>" % (self.name, id(self))
+
+    def effect_hash(self):
+        def make_tuple(effects):
+            return tuple((tuple(c), e) for c, e in effects)
+        return hash((make_tuple(self.add_effects), make_tuple(self.del_effects)))
 
     def dump(self):
         print(self.name)

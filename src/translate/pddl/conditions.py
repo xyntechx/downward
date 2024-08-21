@@ -1,4 +1,5 @@
 from typing import List
+from collections import defaultdict
 
 from .pddl_types import TypedObject
 
@@ -21,9 +22,13 @@ class Condition:
     def __le__(self, other):
         return self.hash <= other.hash
     def dump(self, indent="  "):
-        print("%s%s" % (indent, self._dump()))
+        print(self.dumps(indent))
+    def dumps(self, indent="  "):
+        s = ""
+        s += ("%s%s\n" % (indent, self._dump()))
         for part in self.parts:
-            part.dump(indent + "  ")
+            s += part.dumps(indent + "  ") + "\n"
+        return s
     def _dump(self):
         return self.__class__.__name__
     def _postorder_visit(self, method_name, *args):
@@ -184,14 +189,19 @@ class Disjunction(JunctorCondition):
         if len(result_parts) == 1:
             return result_parts[0]
         # Simplify tautologies
-        atoms = set()
+        atoms = set() # set for tracking binary facts
+        observed_values = defaultdict(set) # var -> set dict for tracking FDR variables
         for part in result_parts:
-            if not is_atomic(part):
-                continue
-            if part.negate() in atoms:
-                return Truth()
-            atoms.add(part)
-        # Simplify redundancies
+            if is_atomic(part):
+                if part.negate() in atoms:
+                    return Truth()
+                atoms.add(part)
+            elif is_varval(part):
+                observed_values[part.var].add(part.val)
+                # Check if all values are in the set
+                if len(observed_values[part.var]) == part.range:
+                    return Truth()
+        # Remove duplicates
         result_parts = list(set(result_parts))
         return Disjunction(result_parts)
     def negate(self):
@@ -337,6 +347,19 @@ class NegatedAtom(Literal):
         return Atom(self.predicate, self.args)
     positive = negate
 
+class VarValLiteral(Literal):
+    def __init__(self, var: str, val: str, range: int) -> None:
+        super().__init__(predicate=var, args=[val]) #TODO: ensure that val has correct type
+        self.range = range
+    @property
+    def var(self):
+        return self.predicate
+    @property
+    def val(self):
+        return self.args[0]
 
 def is_atomic(condition: Condition):
     return isinstance(condition, Atom) or isinstance(condition, NegatedAtom)
+
+def is_varval(condition: Condition):
+    return isinstance(condition, VarValLiteral)

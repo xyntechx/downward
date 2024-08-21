@@ -30,17 +30,23 @@ class Effect:
                 self.parameters == other.parameters and
                 self.condition == other.condition and
                 self.literal == other.literal)
+    def __hash__(self):
+        return hash(self.dumps())
     def dump(self):
+        print(self.dumps())
+    def dumps(self):
+        s = ""
         indent = "  "
         if self.parameters:
-            print("%sforall %s" % (indent, ", ".join(map(str, self.parameters))))
+            s += ("%sforall %s\n" % (indent, ", ".join(map(str, self.parameters))))
             indent += "  "
         if self.condition != conditions.Truth():
-            print("%sif" % indent)
-            self.condition.dump(indent + "  ")
-            print("%sthen" % indent)
+            s += ("%sif\n" % indent)
+            s += self.condition.dumps(indent + "  ") + "\n"
+            s += ("%sthen\n" % indent)
             indent += "  "
-        print("%s%s" % (indent, self.literal))
+        s += ("%s%s" % (indent, self.literal))
+        return s
     def copy(self):
         return Effect(self.parameters, self.condition, self.literal)
     def uniquify_variables(self, type_map):
