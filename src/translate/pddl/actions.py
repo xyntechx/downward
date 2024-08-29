@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple
 
 from . import conditions
 from .conditions import Condition, Literal
+from sas_tasks import SASOperator, SASVariables, VarValPair
 from .effects import Effect
 from .f_expression import Increase
 from .pddl_types import TypedObject
@@ -30,8 +31,8 @@ class Action:
     def __repr__(self):
         return "<Action %r at %#x>" % (self.name, id(self))
 
-    def effect_hash(self):
-        return hash(tuple(self.effects))
+    def hashable(self):
+        return tuple(self.effects), self.cost
 
     def dump(self):
         print("%s(%s)" % (self.name, ", ".join(map(str, self.parameters))))
@@ -132,10 +133,10 @@ class PropositionalAction:
     def __repr__(self):
         return "<PropositionalAction %r at %#x>" % (self.name, id(self))
 
-    def effect_hash(self):
+    def hashable(self):
         def make_tuple(effects):
             return tuple((tuple(c), e) for c, e in effects)
-        return hash((make_tuple(self.add_effects), make_tuple(self.del_effects)))
+        return (make_tuple(self.add_effects), make_tuple(self.del_effects)), self.cost
 
     def dump(self):
         print(self.name)
@@ -145,4 +146,34 @@ class PropositionalAction:
             print("ADD: %s -> %s" % (", ".join(map(str, cond)), fact))
         for cond, fact in self.del_effects:
             print("DEL: %s -> %s" % (", ".join(map(str, cond)), fact))
+        print("cost:", self.cost)
+
+class VarValAction:
+    def __init__(self, name : str, precondition: List[VarValPair], effect: List[VarValPair], cost: int):
+        self.name = name
+        self.precondition = precondition
+        self.effects = effect
+        self.cost = cost
+
+    @classmethod
+    def from_sas(cls, sas_operator: SASOperator):
+        assert not any([cond for (_, _, _, cond) in sas_operator.pre_post]), \
+            'Conditional effects not implemented'
+        pre_list = [(var, pre) for (var, pre, _, _) in sas_operator.pre_post]
+        pre_list += sas_operator.prevail
+        eff_list = [(var, post) for (var, _, post, _) in sas_operator.pre_post]
+        return cls(sas_operator.name, pre_list, eff_list, sas_operator.cost)
+
+    def __repr__(self):
+        return "<VarValAction %r at %#x>" % (self.name, id(self))
+
+    def hashable(self):
+        return tuple(self.effects), self.cost
+
+    def dump(self):
+        print(self.name)
+        for fact in self.precondition:
+            print(f"PRE: {fact}")
+        for fact in self.effects:
+            print(f"EFF: {fact}")
         print("cost:", self.cost)
