@@ -1,5 +1,4 @@
 from typing import List
-from collections import defaultdict
 
 from .pddl_types import TypedObject
 
@@ -189,18 +188,12 @@ class Disjunction(JunctorCondition):
         if len(result_parts) == 1:
             return result_parts[0]
         # Simplify tautologies
-        atoms = set() # set for tracking binary facts
-        observed_values = defaultdict(set) # var -> set dict for tracking FDR variables
+        atoms = set()
         for part in result_parts:
             if is_atomic(part):
                 if part.negate() in atoms:
                     return Truth()
                 atoms.add(part)
-            elif is_varval(part):
-                observed_values[part.var].add(part.val)
-                # Check if all values are in the set
-                if len(observed_values[part.var]) == part.range:
-                    return Truth()
         # Remove duplicates
         result_parts = list(set(result_parts))
         return Disjunction(result_parts)
@@ -347,19 +340,5 @@ class NegatedAtom(Literal):
         return Atom(self.predicate, self.args)
     positive = negate
 
-class VarValLiteral(Literal):
-    def __init__(self, var: str, val: str, range: int) -> None:
-        super().__init__(predicate=var, args=[val]) #TODO: ensure that val has correct type
-        self.range = range
-    @property
-    def var(self):
-        return self.predicate
-    @property
-    def val(self):
-        return self.args[0]
-
 def is_atomic(condition: Condition):
     return isinstance(condition, Atom) or isinstance(condition, NegatedAtom)
-
-def is_varval(condition: Condition):
-    return isinstance(condition, VarValLiteral)
