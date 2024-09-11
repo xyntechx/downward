@@ -5,9 +5,12 @@ import sys
 def parse_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
-        "domain", help="path to domain pddl file")
+        "domain", nargs="?", help="path to domain pddl file", default=None
+    )
     argparser.add_argument(
-        "task", help="path to task pddl file")
+        "task", nargs="?", help="path to task pddl file", default=None
+    )
+    argparser.add_argument("--f", help="Fool iPython")
     argparser.add_argument(
         "--relaxed", dest="generate_relaxed_task", action="store_true",
         help="output relaxed task (no delete effects)")
@@ -57,7 +60,6 @@ def parse_args():
         help="How to assign layers to derived variables. 'min' attempts to put as "
         "many variables into the same layer as possible, while 'max' puts each variable "
         "into its own layer unless it is part of a cycle.")
-    argparser.add_argument('-f', '--fool-ipython')
     return argparser.parse_args()
 
 

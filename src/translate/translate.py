@@ -517,7 +517,7 @@ def translate_task(
                              operators, axioms, metric)
 
 
-def trivial_task(solvable):
+def trivial_task(solvable: bool) -> sas_tasks.SASTask:
     variables = sas_tasks.SASVariables(
         [2], [-1], [["Atom dummy(val1)", "Atom dummy(val2)"]])
     # We create no mutexes: the only possible mutex is between
@@ -537,15 +537,18 @@ def trivial_task(solvable):
     return sas_tasks.SASTask(variables, mutexes, init, goal,
                              operators, axioms, metric)
 
-def solvable_sas_task(msg):
+
+def solvable_sas_task(msg: str) -> sas_tasks.SASTask:
     print("%s! Generating solvable task..." % msg)
     return trivial_task(solvable=True)
 
-def unsolvable_sas_task(msg):
+
+def unsolvable_sas_task(msg: str) -> sas_tasks.SASTask:
     print("%s! Generating unsolvable task..." % msg)
     return trivial_task(solvable=False)
 
-def pddl_to_sas(task):
+
+def pddl_to_sas(task: pddl.Task) -> sas_tasks.SASTask:
     with timers.timing("Instantiating", block=True):
         (relaxed_reachable, atoms, actions, goal_list, axioms,
          reachable_action_params) = instantiate.explore(task)
@@ -623,7 +626,10 @@ def pddl_to_sas(task):
     return sas_task
 
 
-def build_mutex_key(strips_to_sas, groups):
+def build_mutex_key(
+    strips_to_sas: Dict[pddl.Atom, List[VarValPair]],
+    groups: List[List[pddl.Atom]],
+):
     assert options.use_partial_encoding
     group_keys = []
     for group in groups:
@@ -636,7 +642,11 @@ def build_mutex_key(strips_to_sas, groups):
     return group_keys
 
 
-def build_implied_facts(strips_to_sas, groups, mutex_groups):
+def build_implied_facts(
+    strips_to_sas: Dict[pddl.Atom, List[VarValPair]],
+    groups: List[List[pddl.Atom]],
+    mutex_groups: List[List[pddl.Atom]],
+):
     ## Compute a dictionary mapping facts (FDR pairs) to lists of FDR
     ## pairs implied by that fact. In other words, in all states
     ## containing p, all pairs in implied_facts[p] must also be true.
@@ -703,10 +713,10 @@ def dump_statistics(sas_task):
         print("Translator peak memory: %d KB" % peak_memory)
 
 
-def main():
+def main(domain_filename=None, task_filename=None):
     timer = timers.Timer()
     with timers.timing("Parsing", True):
-        task = pddl_parser.open()
+        task = pddl_parser.open(domain_filename, task_filename)
 
     with timers.timing("Normalizing task"):
         normalize.normalize(task)
