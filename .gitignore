@@ -5,3 +5,9 @@ __pycache__/
 /builds/
 /misc/.tox/
 /misc/autodoc/downward-xmlrpc.secret
+/.vscode/
+/.onager/
+*.zip
+/venv/
+*.egg-info/
+
