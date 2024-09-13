@@ -11,6 +11,7 @@ from pddl.actions import VarValAction
 import options
 from scoping.factset import FactSet
 from scoping.merging import merge
+from scoping.sas_parser import SasParser
 from translate import pddl_to_sas
 
 # %%
@@ -22,9 +23,17 @@ task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
 # )
 # task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-1.pddl"
 options.keep_unimportant_variables = True
+options.sas_file = True
 task = pddl_parser.open(domain_filename, task_filename)
 sas_task: SASTask = pddl_to_sas(task)
+
 sas_task.dump()
+
+# %%
+sas_path = "../../toy-minecraft.sas"
+parser = SasParser(pth=sas_path)
+parser.parse()
+sas_task: SASTask = parser.to_fd()
 
 
 def get_backward_reachable_actions(
@@ -103,7 +112,7 @@ def backward_reachability(
 
 # %%
 
-facts, actions = backward_reachability(sas_task, enable_merging=True)
+facts, actions = backward_reachability(sas_task, enable_merging=False)
 print("actions:", len(actions))
 print("facts:")
 sorted(facts)
