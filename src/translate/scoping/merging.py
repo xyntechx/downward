@@ -13,7 +13,9 @@ def merge(
     output_info: bool = False,
     mode: str = "variables",
 ) -> Tuple[Union[List[str], FactSet], Optional[Dict]]:
-    actions = list(actions)
+    actions: List[VarValAction] = list(actions)
+    if len(actions) == 1:
+        return FactSet(actions[0].precondition)
     h0 = actions[0].hashable()
     for a in actions[1:]:
         h = a.hashable()
@@ -60,12 +62,11 @@ def merge(
 
     # return relevant precondition vars
     relevant_precond_vars = [var for var in all_precond_vars if var not in removed_vars]
-    relevant_precond_vals = FactSet()
+    relevant_precond_facts = FactSet()
     for partial_state in satisfying_partial_states:
-        for var, val in partial_state:
-            relevant_precond_vals.add(var, val)
+        relevant_precond_facts.add(partial_state)
 
-    result = relevant_precond_vars if mode == "variables" else relevant_precond_vals
+    result = relevant_precond_vars if mode == "variables" else relevant_precond_facts
     if output_info:
         result = (result, satisfying_partial_states)
     return result

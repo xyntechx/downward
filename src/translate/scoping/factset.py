@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, overload, Set, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, overload, Set, Tuple, Union
 
 
 class FactSet:
@@ -8,7 +8,7 @@ class FactSet:
     def __init__(
         self,
         facts: Union[
-            "FactSet", Dict[Any, Set[Any]], List[Tuple[Any, Any]], None
+            "FactSet", Dict[Any, Set[Any]], Iterable[Tuple[Any, Any]], None
         ] = None,
     ) -> None:
         self.facts = defaultdict(set)
@@ -48,19 +48,19 @@ class FactSet:
     @overload
     def add(self, var: Any, val: Any) -> None: ...
     @overload
-    def add(self, fact_list: List[Tuple[Any, Any]]) -> None: ...
+    def add(self, facts_iterable: Iterable[Tuple[Any, Any]]) -> None: ...
     def add(
         self,
-        fact_list_or_var: Union[Any, List[Tuple[Any, Any]]],
+        facts_iterable_or_var: Union[Any, Iterable[Tuple[Any, Any]]],
         val: Optional[Any] = None,
     ) -> None:
-        """Add a new fact (var = val), or a list of such facts, to the FactSet"""
+        """Add a new fact (var = val), or an iterable of such facts, to the FactSet"""
         if val is None:
-            fact_list = fact_list_or_var
-            for var, val in fact_list:
+            facts_iterable = facts_iterable_or_var
+            for var, val in facts_iterable:
                 self.add(var, val)
         else:
-            var = fact_list_or_var
+            var = facts_iterable_or_var
             self.facts[var].add(val)
 
     @overload
