@@ -7,6 +7,16 @@ from pddl.actions import Action, PropositionalAction, VarValAction
 from scoping.factset import FactSet
 
 
+def precondition_facts(action: VarValAction, variable_domains: FactSet) -> FactSet:
+    precond_facts = FactSet()
+    for var, val in action.precondition:
+        if val == -1:
+            precond_facts.union(var, variable_domains[var])
+        else:
+            precond_facts.add(var, val)
+    return precond_facts
+
+
 def merge(
     actions: Set[VarValAction],
     variable_domains: FactSet,
@@ -15,11 +25,18 @@ def merge(
 ) -> Tuple[Union[List[str], FactSet], Optional[Dict]]:
     actions: List[VarValAction] = list(actions)
     if len(actions) == 1:
-        return FactSet(actions[0].precondition)
+        return precondition_facts(actions[0], variable_domains)
     h0 = actions[0].hashable()
     for a in actions[1:]:
         h = a.hashable()
         assert h == h0, "Attempted to merge skills with different effects/costs"
+
+    # # TODO: Is merging only useful if at least one variable spans its whole domain?
+    # precond_facts = FactSet()
+    # for a in actions:
+    #     precond_facts.union(precondition_facts(a, variable_domains))
+    # if not any(values == variable_domains[var] for var, values in precond_facts):
+    #     return precond_facts
 
     # collect the precondition variables
     action_precond_vars = [set([var for (var, _) in a.precondition]) for a in actions]

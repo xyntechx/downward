@@ -14,13 +14,13 @@ from scoping.merging import merge
 from translate import pddl_to_sas
 
 # %%
-# domain_filename = "../../../scoping/domains/propositional/ipc/gripper/domain.pddl"
-# task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
+domain_filename = "../../../scoping/domains/propositional/ipc/gripper/domain.pddl"
+task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
 
-domain_filename = (
-    "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
-)
-task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-1.pddl"
+# domain_filename = (
+#     "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
+# )
+# task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-1.pddl"
 options.keep_unimportant_variables = True
 task = pddl_parser.open(domain_filename, task_filename)
 sas_task: SASTask = pddl_to_sas(task)
@@ -104,3 +104,6 @@ def backward_reachability(
 # %%
 
 facts, actions = backward_reachability(sas_task, enable_merging=True)
+print("actions:", len(actions))
+print("facts:")
+sorted(facts)
