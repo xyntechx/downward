@@ -1,3 +1,4 @@
+from __future__ import annotations
 from collections import defaultdict
 from typing import Any, Dict, Iterable, Optional, overload, Set, Tuple, Union
 
@@ -8,7 +9,7 @@ class FactSet:
     def __init__(
         self,
         facts: Union[
-            "FactSet", Dict[Any, Set[Any]], Iterable[Tuple[Any, Any]], None
+            FactSet, Dict[Any, Set[Any]], Iterable[Tuple[Any, Any]], None
         ] = None,
     ) -> None:
         self.facts = defaultdict(set)
@@ -25,7 +26,7 @@ class FactSet:
     def __getitem__(self, key: Any) -> Set[Any]:
         return self.facts[key]
 
-    def __eq__(self, other: Optional["FactSet"]) -> bool:
+    def __eq__(self, other: Optional[FactSet]) -> bool:
         if other is None:
             return False
         return self.facts == other.facts
@@ -64,12 +65,12 @@ class FactSet:
             self.facts[var].add(val)
 
     @overload
-    def union(self, other_facts: "FactSet") -> None: ...
+    def union(self, other_facts: FactSet) -> None: ...
     @overload
     def union(self, var: Any, values: Set[Any]) -> None: ...
     def union(
         self,
-        other_facts_or_var: Union["FactSet", Any],
+        other_facts_or_var: Union[FactSet, Any],
         values: Optional[Set[Any]] = None,
     ) -> None:
         """Take the in-place union of the FactSet with the specified additional facts"""
