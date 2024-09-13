@@ -1,19 +1,19 @@
-from collections import defaultdict
 import itertools
-from typing import Dict, List, Set, Tuple, Union
-
+from typing import Dict, List, Set, Tuple, Union, Optional
 
 from normalize import convert_to_DNF
 from pddl.conditions import Condition, Disjunction, Conjunction
 from pddl.actions import Action, PropositionalAction, VarValAction
+from scoping.factset import FactSet
 
 
 def merge(
-    actions: List[VarValAction],
-    variable_domains: Dict[str, Set],
+    actions: Set[VarValAction],
+    variable_domains: FactSet,
     output_info: bool = False,
     mode: str = "variables",
-):
+) -> Tuple[Union[List[str], FactSet], Optional[Dict]]:
+    actions = list(actions)
     h0 = actions[0].hashable()
     for a in actions[1:]:
         h = a.hashable()
@@ -60,10 +60,10 @@ def merge(
 
     # return relevant precondition vars
     relevant_precond_vars = [var for var in all_precond_vars if var not in removed_vars]
-    relevant_precond_vals = defaultdict(set)
+    relevant_precond_vals = FactSet()
     for partial_state in satisfying_partial_states:
         for var, val in partial_state:
-            relevant_precond_vals[var].add(val)
+            relevant_precond_vals.add(var, val)
 
     result = relevant_precond_vars if mode == "variables" else relevant_precond_vals
     if output_info:
