@@ -88,3 +88,9 @@ class FactSet:
             return False
         values = self.facts[var]
         return val in values
+
+    def is_subset(self, other_facts: FactSet):
+        for var, values in self:
+            if any([(var, val) not in other_facts for val in values]):
+                return False
+        return True

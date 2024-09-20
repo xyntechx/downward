@@ -4,11 +4,10 @@
 # %%
 from typing import Any, List, Set, Tuple
 
-import pddl_parser
-
-from sas_tasks import SASTask
-from pddl.actions import VarValAction
 import options
+import pddl_parser
+from pddl.actions import VarValAction
+from sas_tasks import SASTask
 from scoping.factset import FactSet
 from scoping.merging import merge
 from scoping.sas_parser import SasParser
@@ -18,38 +17,43 @@ from translate import pddl_to_sas
 # domain_filename = "../../../scoping/domains/propositional/ipc/gripper/domain.pddl"
 # task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
 
-# domain_filename = (
-#     "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
-# )
-# task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-1.pddl"
-# options.keep_unimportant_variables = True
-# options.sas_file = True
-# task = pddl_parser.open(domain_filename, task_filename)
-# sas_task: SASTask = pddl_to_sas(task)
+domain_filename = (
+    "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
+)
+task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-1.pddl"
+options.keep_unimportant_variables = True
+options.keep_unreachable_facts = True
+options.sas_file = True
+task = pddl_parser.open(domain_filename, task_filename)
+sas_task: SASTask = pddl_to_sas(task)
 
 # sas_task.dump()
 
 # %%
-sas_path = "../../toy-minecraft.sas"
-parser = SasParser(pth=sas_path)
-parser.parse()
-sas_task: SASTask = parser.to_fd()
+# sas_path = "../../toy-minecraft-merging.sas"
+# parser = SasParser(pth=sas_path)
+# parser.parse()
+# sas_task: SASTask = parser.to_fd()
 
 
-def filter_unthreatened_causal_links(
+def filter_causally_linked_facts(
     facts: FactSet, init: List[Tuple[Any, Any]], actions: Set[VarValAction]
 ) -> FactSet:
     affected_facts = FactSet()
     for a in actions:
         affected_facts.add(a.effects)
     unthreatened_init_facts = FactSet(
-        [(var, val) for (var, val) in init if affected_facts[var] in [set(), set(val)]]
+        [
+            (var, val)
+            for (var, val) in init
+            if affected_facts[var] in [set(), set([val])]
+        ]
     )
     relevant_facts = FactSet()
     for var, values in facts:
         for val in values:
             if (var, val) not in unthreatened_init_facts:
-                relevant_facts.add((var, val))
+                relevant_facts.add(var, val)
     return relevant_facts
 
 
@@ -61,23 +65,30 @@ def get_backward_reachable_actions(
 
 def get_backward_reachable_facts(
     variable_domains: FactSet,
+    reachable_facts: FactSet,
     reachable_actions: List[VarValAction],
-    init: List[Tuple[Any, Any]],
     enable_merging: bool = False,
-    enable_causal_links: bool = False,
+    mode="values",
 ) -> FactSet:
     if enable_merging:
-        # partition actions by (effect, cost)
-        unique_effects_and_costs = [a.hashable() for a in reachable_actions]
+        # partition actions by (effect, cost), ignoring irrelevant variables
+        relevant_variables = list(reachable_facts.keys())
+        unique_effects_and_costs = set(
+            [a.effect_hash(relevant_variables) for a in reachable_actions]
+        )
         effect_cost_partitions = {
             effect_cost: set(
-                [a for a in reachable_actions if a.hashable() == effect_cost]
+                [
+                    a
+                    for a in reachable_actions
+                    if a.effect_hash(relevant_variables) == effect_cost
+                ]
             )
             for effect_cost in unique_effects_and_costs
         }
         # merge the actions in each partition
         reachable_factsets = [
-            merge(action_list, variable_domains, mode="values")
+            merge(action_list, relevant_variables, variable_domains, mode=mode)
             for action_list in effect_cost_partitions.values()
         ]
         reachable_facts = FactSet()
@@ -92,25 +103,6 @@ def get_backward_reachable_facts(
                 else:
                     reachable_facts.add(var, val)
 
-    # if not enable_causal_links:
-    #     relevant_facts = reachable_facts
-    # else:
-    #     affected_facts = FactSet()
-    #     for a in reachable_actions:
-    #         affected_facts.add(a.effects)
-    #     unthreatened_init_facts = FactSet(
-    #         [
-    #             (var, val)
-    #             for (var, val) in init
-    #             if affected_facts[var] in [set(), set([val])]
-    #         ]
-    #     )
-    #     relevant_facts = FactSet()
-    #     for var, values in reachable_facts:
-    #         for val in values:
-    #             if (var, val) not in unthreatened_init_facts:
-    #                 relevant_facts.add(var, val)
-
     return reachable_facts
 
 
@@ -118,20 +110,23 @@ def backward_reachability_step(
     variable_domains: FactSet,
     facts: FactSet,
     init: List[Tuple[Any, Any]],
-    actions: Set[VarValAction],
+    actions: List[VarValAction],
+    reachable_actions: List[VarValAction],
     enable_merging: bool = False,
     enable_causal_links: bool = False,
-) -> Tuple[FactSet, Set[VarValAction]]:
-    # filtered_facts = filter_unthreatened_causal_links(facts, init, actions)
-    reachable_actions = get_backward_reachable_actions(facts, actions)
+) -> Tuple[FactSet, List[VarValAction]]:
+    if enable_causal_links:
+        filtered_facts = filter_causally_linked_facts(facts, init, reachable_actions)
+    else:
+        filtered_facts = facts
+    reachable_actions = get_backward_reachable_actions(filtered_facts, actions)
     reachable_facts = get_backward_reachable_facts(
         variable_domains,
+        filtered_facts,
         reachable_actions,
-        init,
         enable_merging=enable_merging,
-        enable_causal_links=enable_causal_links,
     )
-    reachable_facts.union(facts)
+    reachable_facts.union(filtered_facts)
 
     return reachable_facts, reachable_actions
 
@@ -141,19 +136,27 @@ def backward_reachability(
     enable_merging: bool = False,
     enable_causal_links: bool = False,
 ) -> Tuple[FactSet, List[VarValAction]]:
-    actions = set([VarValAction.from_sas(op) for op in sas_task.operators])
+    actions = [VarValAction.from_sas(op) for op in sas_task.operators]
+    reachable_actions = []
     variable_domains = FactSet(
         {i: set(range(r)) for i, r in enumerate(sas_task.variables.ranges)}
     )
     init = list(enumerate(sas_task.init.values))
     facts = FactSet(sas_task.goal.pairs)
     prev_facts = None
-    while facts != prev_facts:
+    prev_n_reachable_actions = len(reachable_actions)
+    while facts != prev_facts or len(reachable_actions) != prev_n_reachable_actions:
         prev_facts = facts
+        prev_n_reachable_actions = len(reachable_actions)
         facts, reachable_actions = backward_reachability_step(
-            variable_domains, facts, init, actions, enable_merging, enable_causal_links
+            variable_domains,
+            facts,
+            init,
+            actions,
+            reachable_actions,
+            enable_merging,
+            enable_causal_links,
         )
-        facts
 
     return facts, reachable_actions
 

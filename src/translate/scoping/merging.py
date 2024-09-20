@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, List, Set, Tuple, Union, Optional
+from typing import Any, Dict, List, Set, Tuple, Union, Optional
 
 from normalize import convert_to_DNF
 from pddl.conditions import Condition, Disjunction, Conjunction
@@ -18,7 +18,8 @@ def precondition_facts(action: VarValAction, variable_domains: FactSet) -> FactS
 
 
 def merge(
-    actions: Set[VarValAction],
+    actions: List[VarValAction],
+    relevant_variables: List[Any],
     variable_domains: FactSet,
     output_info: bool = False,
     mode: str = "variables",
@@ -26,9 +27,9 @@ def merge(
     actions: List[VarValAction] = list(actions)
     if len(actions) == 1:
         return precondition_facts(actions[0], variable_domains)
-    h0 = actions[0].hashable()
+    h0 = actions[0].effect_hash(relevant_variables)
     for a in actions[1:]:
-        h = a.hashable()
+        h = a.effect_hash(relevant_variables)
         assert h == h0, "Attempted to merge skills with different effects/costs"
 
     # # TODO: Is merging only useful if at least one variable spans its whole domain?
