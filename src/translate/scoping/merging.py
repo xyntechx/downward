@@ -1,32 +1,53 @@
 import itertools
-from typing import Any, Dict, List, Set, Tuple, Union, Optional
+from typing import Any
 
 from normalize import convert_to_DNF
 from pddl.conditions import Condition, Disjunction, Conjunction
 from pddl.actions import Action, PropositionalAction, VarValAction
 from scoping.factset import FactSet
+from sas_tasks import VarValPair
 
 
-def precondition_facts(action: VarValAction, variable_domains: FactSet) -> FactSet:
+def get_precondition_facts(action: VarValAction, variable_domains: FactSet) -> FactSet:
     precond_facts = FactSet()
     for var, val in action.precondition:
         if val == -1:
+            # TODO: shouldn't these have all been removed during sas parsing?
             precond_facts.union(var, variable_domains[var])
         else:
             precond_facts.add(var, val)
     return precond_facts
 
 
-def merge(
-    actions: List[VarValAction],
-    relevant_variables: List[Any],
+def simplify_tautologies(
+    partial_states: set[tuple[VarValPair]],
+    all_precond_vars: set[Any],
     variable_domains: FactSet,
-    output_info: bool = False,
-    mode: str = "variables",
-) -> Tuple[Union[List[str], FactSet], Optional[Dict]]:
-    actions: List[VarValAction] = list(actions)
+):
+    """Condense the partial states by removing any unconstrained variables"""
+    removed_vars = []
+    for removed_var in all_precond_vars:
+        partial_states_without_var = {
+            tuple((var, val) for var, val in partial_state if var != removed_var)
+            for partial_state in partial_states
+        }
+
+        if len(partial_states_without_var) * len(variable_domains[removed_var]) == len(
+            partial_states
+        ):
+            partial_states = partial_states_without_var
+            removed_vars.append(removed_var)
+    return partial_states
+
+
+def merge(
+    actions: list[VarValAction],
+    relevant_variables: list[Any],
+    variable_domains: FactSet,
+) -> FactSet:
+    """Get the relevant precondition facts after merging actions"""
     if len(actions) == 1:
-        return precondition_facts(actions[0], variable_domains)
+        return get_precondition_facts(actions[0], variable_domains)
     h0 = actions[0].effect_hash(relevant_variables)
     for a in actions[1:]:
         h = a.effect_hash(relevant_variables)
@@ -35,62 +56,38 @@ def merge(
     # # TODO: Is merging only useful if at least one variable spans its whole domain?
     # precond_facts = FactSet()
     # for a in actions:
-    #     precond_facts.union(precondition_facts(a, variable_domains))
+    #     precond_facts.union(get_precondition_facts(a, variable_domains))
     # if not any(values == variable_domains[var] for var, values in precond_facts):
     #     return precond_facts
 
     # collect the precondition variables
-    action_precond_vars = [set([var for (var, _) in a.precondition]) for a in actions]
-    all_precond_vars = set().union(*action_precond_vars)
-
-    # identify which precond vars are don't-cares for each action
-    action_dc_vars: List[Set] = [
-        all_precond_vars.difference(vars) for vars in action_precond_vars
-    ]
+    precond_vars_by_action = [set([var for var, _ in a.precondition]) for a in actions]
+    all_precond_vars = set().union(*precond_vars_by_action)
 
     # build the set of satisfying partial states for the merged action
-    satisfying_partial_states: Set[Tuple] = set()
-    for action_id, action in enumerate(actions):
-        dc_vars = [(var, variable_domains[var]) for var in action_dc_vars[action_id]]
-        dc_val_possibilities = [values for (_, values) in dc_vars]
-        dc_val_combinations = list(itertools.product(*dc_val_possibilities))
-        dc_varval_combinations = [
-            [(var, val) for (var, _), val in zip(dc_vars, values)]
-            for values in dc_val_combinations
+    satisfying_partial_states = set()
+    for action, precond_vars in zip(actions, precond_vars_by_action):
+        dont_care_vars = all_precond_vars.difference(precond_vars)
+        dont_care_domains = [variable_domains[var] for var in dont_care_vars]
+        dont_care_val_combos = list(itertools.product(*dont_care_domains))
+        dont_care_varval_combos = [
+            list(zip(dont_care_vars, dont_care_vals))
+            for dont_care_vals in dont_care_val_combos
         ]
+        for dont_care_varvals in dont_care_varval_combos:
+            partial_state = tuple(sorted(action.precondition + dont_care_varvals))
+            satisfying_partial_states.add(partial_state)
 
-        [
-            satisfying_partial_states.add(tuple(sorted(action.precondition + dcs)))
-            for dcs in dc_varval_combinations
-        ]
-
-    # see if any variables can be removed without changing the satisfying set
-    removed_vars = []
-    for removed_var in all_precond_vars:
-        partial_states_without_var = {
-            tuple((var, val) for var, val in partial_state if var != removed_var)
-            for partial_state in satisfying_partial_states
-        }
-
-        if len(partial_states_without_var) * len(variable_domains[removed_var]) == len(
-            satisfying_partial_states
-        ):
-            satisfying_partial_states = partial_states_without_var
-            removed_vars.append(removed_var)
-
-    # return relevant precondition vars
-    relevant_precond_vars = [var for var in all_precond_vars if var not in removed_vars]
+    satisfying_partial_states = simplify_tautologies(
+        satisfying_partial_states, all_precond_vars, variable_domains
+    )
     relevant_precond_facts = FactSet()
     for partial_state in satisfying_partial_states:
         relevant_precond_facts.add(partial_state)
-
-    result = relevant_precond_vars if mode == "variables" else relevant_precond_facts
-    if output_info:
-        result = (result, satisfying_partial_states)
-    return result
+    return relevant_precond_facts
 
 
-def merge_pddl(actions: List[Union[Action, PropositionalAction]]):
+def merge_pddl(actions: list[(Action | PropositionalAction)]):
     # Check if actions have same effects (on relevant vars)!
     #  - either pass relevant_vars as input to merge()
     #  - or scope the actions so they don't include irrelevant vars before sending to merge()

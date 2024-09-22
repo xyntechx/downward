@@ -1,16 +1,16 @@
 from __future__ import annotations
 from collections import defaultdict
-from typing import Any, Dict, Iterable, Optional, overload, Set, Tuple, Union
+from typing import Any, Iterable, Optional, overload, Union
+
+from sas_tasks import VarValPair
 
 
 class FactSet:
-    facts: Dict[Any, Set[Any]]
+    facts: dict[Any, set[Any]]
 
     def __init__(
         self,
-        facts: Union[
-            FactSet, Dict[Any, Set[Any]], Iterable[Tuple[Any, Any]], None
-        ] = None,
+        facts: Union[FactSet, dict[Any, set[Any]], Iterable[VarValPair], None] = None,
     ) -> None:
         self.facts = defaultdict(set)
         if facts is None:
@@ -23,7 +23,7 @@ class FactSet:
     def __repr__(self) -> str:
         return f"FactSet({repr(dict(self.facts))})"
 
-    def __getitem__(self, key: Any) -> Set[Any]:
+    def __getitem__(self, key: Any) -> set[Any]:
         return self.facts[key]
 
     def __eq__(self, other: Optional[FactSet]) -> bool:
@@ -37,22 +37,17 @@ class FactSet:
     def __iter__(self):
         return iter(self.facts.items())
 
-    def keys(self):
-        return self.facts.keys()
-
-    def values(self):
-        return self.facts.values()
-
-    def items(self):
-        return self.facts.items()
+    @property
+    def variables(self) -> list[Any]:
+        return list(self.facts.keys())
 
     @overload
     def add(self, var: Any, val: Any) -> None: ...
     @overload
-    def add(self, facts_iterable: Iterable[Tuple[Any, Any]]) -> None: ...
+    def add(self, facts_iterable: Iterable[VarValPair]) -> None: ...
     def add(
         self,
-        facts_iterable_or_var: Union[Any, Iterable[Tuple[Any, Any]]],
+        facts_iterable_or_var: Union[Any, Iterable[VarValPair]],
         val: Optional[Any] = None,
     ) -> None:
         """Add a new fact (var = val), or an iterable of such facts, to the FactSet"""
@@ -65,17 +60,19 @@ class FactSet:
             self.facts[var].add(val)
 
     @overload
-    def union(self, other_facts: FactSet) -> None: ...
+    def union(self, other_facts: FactSet | dict) -> None: ...
     @overload
-    def union(self, var: Any, values: Set[Any]) -> None: ...
+    def union(self, var: Any, values: set[Any]) -> None: ...
     def union(
         self,
         other_facts_or_var: Union[FactSet, Any],
-        values: Optional[Set[Any]] = None,
+        values: Optional[set[Any]] = None,
     ) -> None:
         """Take the in-place union of the FactSet with the specified additional facts"""
         if values is None:
             other_facts = other_facts_or_var
+            if isinstance(other_facts, FactSet):
+                other_facts = other_facts.facts
             for var, values in other_facts.items():
                 self.union(var, values)
         else:
@@ -83,14 +80,17 @@ class FactSet:
             self.facts[var] = self.facts[var].union(values)
 
     def __contains__(self, item) -> bool:
-        var, val = item
-        if var not in self.facts:
-            return False
-        values = self.facts[var]
-        return val in values
-
-    def is_subset(self, other_facts: FactSet):
-        for var, values in self:
-            if any([(var, val) not in other_facts for val in values]):
+        """Check if a (var, val) pair is an element of the FactSet, or if another
+        FactSet is a subset of this one"""
+        if isinstance(item, FactSet):
+            other_facts = item
+            for var, values in other_facts:
+                if any([(var, val) not in self for val in values]):
+                    return False
+            return True
+        else:
+            var, val = item
+            if var not in self.facts:
                 return False
-        return True
+            values = self.facts[var]
+            return val in values

@@ -3,11 +3,10 @@ from typing import Any, List, Optional, Tuple
 
 from . import conditions
 from .conditions import Condition, Literal
-from sas_tasks import SASOperator, SASVariables, VarValPair
+from sas_tasks import SASOperator, VarValPair
 from .effects import Effect
 from .f_expression import Increase
 from .pddl_types import TypedObject
-from scoping.factset import FactSet
 
 
 class Action:
@@ -217,9 +216,6 @@ class VarValAction:
         return tuple(
             [(var, val) for (var, val) in self.effects if var in relevant_variables]
         ), self.cost
-
-    # def effect_hash(self, relevant_facts: FactSet) -> Tuple[List[VarValPair], int]:
-    #     return [fact for fact in self.effects if fact in relevant_facts], self.cost
 
     def dump(self):
         print(self.name)
