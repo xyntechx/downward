@@ -99,8 +99,7 @@ class SasOperator:
 
 @dataclass(frozen=True, order=True)
 class SasAxiom(SasEffect):
-    def __init__(self, *args, **kwargs):
-        raise NotImplementedError
+    pass
 
 
 @dataclass(frozen=True, order=True)
@@ -266,12 +265,18 @@ class SasParser:
             i_val_old = int(m_axiom.group("val_num_old"))
             i_val_new = int(m_axiom.group("val_num_new"))
             affected_var = self.sas_vars[i_affected_var]
+            # -1 means that there is no condition on the affected var
+            if i_val_old == -1:
+                val_cond = None
+            else:
+                val_cond = affected_var.vals[i_val_old]
             axioms_lst.append(
                 SasAxiom(
                     cond=tuple(conds),
-                    var=affected_var,
-                    pre=affected_var.vals[i_val_old],
-                    post=affected_var.vals[i_val_new],
+                    var=i_affected_var,
+                    affected_var=affected_var,
+                    pre=val_cond,
+                    post=i_val_new,
                 )
             )
         self.axioms = tuple(axioms_lst)
@@ -516,9 +521,9 @@ class SasParser:
             operators.append(fd.SASOperator(op.nm, op.prevail, pre_post, op.cost))
 
         # Axioms
-        if self.axioms:
-            raise NotImplementedError("Axioms not implemented")
         axioms = []
+        for ax in self.axioms:
+            axioms.append(fd.SASAxiom(ax.cond, (ax.var, ax.post)))
 
         # Metric
         metric = self.metric
