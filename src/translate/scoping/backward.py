@@ -4,36 +4,10 @@
 # %%
 from typing import Any, Tuple
 
-import options
-import pddl_parser
 from pddl.actions import VarValAction
 from sas_tasks import SASTask, VarValPair
 from scoping.factset import FactSet
 from scoping.merging import merge
-from scoping.sas_parser import SasParser
-from translate import pddl_to_sas
-
-# %%
-# domain_filename = "../../../scoping/domains/propositional/ipc/gripper/domain.pddl"
-# task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
-
-domain_filename = (
-    "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
-)
-task_filename = "../../../scoping/domains/propositional/toy-minecraft/example-2.pddl"
-options.keep_unimportant_variables = True
-options.keep_unreachable_facts = True
-options.sas_file = True
-task = pddl_parser.open(domain_filename, task_filename)
-sas_task: SASTask = pddl_to_sas(task)
-
-# %%
-# sas_path = "../../toy-minecraft-merging.sas"
-# parser = SasParser(pth=sas_path)
-# parser.parse()
-# sas_task: SASTask = parser.to_fd()
-
-# %%
 
 
 def filter_causal_links(
@@ -78,6 +52,11 @@ def partition_actions(
     return effect_cost_partitions
 
 
+def coarsen_facts_to_variables(facts: FactSet, domains: FactSet) -> FactSet:
+    for var, _ in facts:
+        facts.union(var, domains[var])
+
+
 def get_goal_relevant_facts(
     domains: FactSet,
     relevant_facts: FactSet,
@@ -109,6 +88,7 @@ def goal_relevance_step(
     relevant_actions: list[VarValAction],
     enable_merging: bool = False,
     enable_causal_links: bool = False,
+    variables_only: bool = False,
 ) -> Tuple[FactSet, list[VarValAction]]:
     if enable_causal_links:
         filtered_facts = filter_causal_links(facts, init, relevant_actions)
@@ -123,6 +103,9 @@ def goal_relevance_step(
     )
     relevant_facts.union(filtered_facts)
 
+    if variables_only:
+        coarsen_facts_to_variables(relevant_facts, domains)
+
     return relevant_facts, relevant_actions
 
 
@@ -130,6 +113,7 @@ def compute_goal_relevance(
     sas_task: SASTask,
     enable_merging: bool = False,
     enable_causal_links: bool = False,
+    variables_only: bool = False,
 ) -> Tuple[FactSet, list[VarValAction]]:
     domains = FactSet(
         {i: set(range(r)) for i, r in enumerate(sas_task.variables.ranges)}
@@ -137,6 +121,8 @@ def compute_goal_relevance(
     init = list(enumerate(sas_task.init.values))
     actions = [VarValAction.from_sas(op) for op in sas_task.operators]
     relevant_facts = FactSet(sas_task.goal.pairs)
+    if variables_only:
+        coarsen_facts_to_variables(relevant_facts, domains)
     relevant_actions = []
     prev_facts = None
     prev_actions = []
@@ -150,24 +136,52 @@ def compute_goal_relevance(
             relevant_actions,
             enable_merging,
             enable_causal_links,
+            variables_only=variables_only,
         )
 
     return relevant_facts, relevant_actions
 
 
 # %%
+if __name__ == "main":
+    import options
+    import pddl_parser
+    from scoping.sas_parser import SasParser
+    from translate import pddl_to_sas
 
-# sas_task.dump()
+    # domain_filename = "../../../scoping/domains/propositional/ipc/gripper/domain.pddl"
+    # task_filename = "../../../scoping/domains/propositional/ipc/gripper/prob04.pddl"
 
-for merging in [False, True]:
-    for causal_links in [False, True]:
-        facts, actions = compute_goal_relevance(
-            sas_task,
-            enable_merging=merging,
-            enable_causal_links=causal_links,
-        )
-        print(f"{merging=}")
-        print(f"{causal_links=}")
-        print("actions:", len(actions), sorted(a.name for a in actions))
-        print("facts:", sorted(facts))
-        print()
+    domain_filename = (
+        "../../../scoping/domains/propositional/toy-minecraft/toy-example.pddl"
+    )
+    task_filename = (
+        "../../../scoping/domains/propositional/toy-minecraft/example-2.pddl"
+    )
+    options.keep_unimportant_variables = True
+    options.keep_unreachable_facts = True
+    options.sas_file = True
+    task = pddl_parser.open(domain_filename, task_filename)
+    sas_task: SASTask = pddl_to_sas(task)
+
+    # %%
+    # sas_path = "../../toy-minecraft-merging.sas"
+    # parser = SasParser(pth=sas_path)
+    # parser.parse()
+    # sas_task: SASTask = parser.to_fd()
+
+    # %%
+    # sas_task.dump()
+
+    for merging in [False, True]:
+        for causal_links in [False, True]:
+            facts, actions = compute_goal_relevance(
+                sas_task,
+                enable_merging=merging,
+                enable_causal_links=causal_links,
+            )
+            print(f"{merging=}")
+            print(f"{causal_links=}")
+            print("actions:", len(actions), sorted(a.name for a in actions))
+            print("facts:", sorted(facts))
+            print()

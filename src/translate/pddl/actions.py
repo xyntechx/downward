@@ -7,6 +7,7 @@ from sas_tasks import SASOperator, VarValPair
 from .effects import Effect
 from .f_expression import Increase
 from .pddl_types import TypedObject
+from scoping.factset import FactSet
 
 
 class Action:
@@ -202,13 +203,63 @@ class VarValAction:
             (var, pre) for (var, pre, _, _) in sas_operator.pre_post if pre != -1
         ]
         pre_list += sas_operator.prevail
-        eff_list = [(var, post) for (var, _, post, _) in sas_operator.pre_post]
+        eff_list = [(var, post) for (var, pre, post, conds) in sas_operator.pre_post]
         # TODO: remove duplicates?
         pre_list = sorted(list(set(pre_list)))
         return cls(sas_operator.name, pre_list, eff_list, sas_operator.cost)
 
+    @property
+    def prevail(self) -> list[VarValPair]:
+        effect_facts = FactSet(self.effects)
+
+        def is_prevail(var_val: VarValPair):
+            if var_val not in self.precondition:
+                return False
+            var, val = var_val
+            if var not in effect_facts.variables:
+                return True
+            if set([val]) != effect_facts[var]:
+                return False
+            return True
+
+        return [fact for fact in self.precondition if is_prevail(fact)]
+
+    @property
+    def pre_post(self) -> List[Tuple[int, int, int, List[VarValPair]]]:
+        prevails = self.prevail
+        precond_facts = FactSet(
+            [fact for fact in self.precondition if fact not in prevails]
+        )
+
+        def get_precond(var):
+            if precond_facts[var]:
+                return precond_facts[var].pop()
+            return -1
+
+        return [
+            (var, get_precond(var), val, [])
+            for var, val in self.effects
+            if (var, val) not in prevails
+        ]
+
+    def __eq__(self, other: object) -> bool:
+        if self.name != other.name:
+            return False
+        if self.precondition != other.precondition:
+            return False
+        if self.effects != other.effects:
+            return False
+        if self.cost != other.cost:
+            return False
+        return True
+
     def __repr__(self):
-        return "<VarValAction %r at %#x>" % (self.name, id(self))
+        return f"VarValAction({self.name}, pre={self.precondition}, eff={self.effects})"
+
+    def __hash__(self) -> int:
+        return hash(
+            (self.name, tuple(self.precondition), tuple(self.effects), self.cost)
+        )
 
     def effect_hash(
         self, relevant_variables: List[Any]
