@@ -330,7 +330,10 @@ static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> opera
 
     // New operators vector has two copies of each action
     for (tasks::ExplicitOperator op: operators) {
+        string og_name = op.name;
+        op.name = "alt_" + og_name;
         new_ops.push_back(op);
+        op.name = og_name;
         new_ops.push_back(op);
     }
 
