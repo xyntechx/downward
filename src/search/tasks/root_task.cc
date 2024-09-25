@@ -324,6 +324,19 @@ static vector<ExplicitOperator> read_actions(
     return actions;
 }
 
+static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> operators) {
+    vector<ExplicitOperator> new_ops;
+    new_ops.reserve(operators.size() * 2); // we're duplicating each action once
+
+    // New operators vector has two copies of each action
+    for (tasks::ExplicitOperator op: operators) {
+        new_ops.push_back(op);
+        new_ops.push_back(op);
+    }
+
+    return new_ops;
+}
+
 RootTask::RootTask(istream &in) {
     read_and_verify_version(in);
     bool use_metric = read_metric(in);
@@ -346,6 +359,14 @@ RootTask::RootTask(istream &in) {
     goals = read_goal(in);
     check_facts(goals, variables);
     operators = read_actions(in, false, use_metric, variables);
+
+    operators = duplicate_actions(operators);
+    std::cout << "Operators: ";
+    for (tasks::ExplicitOperator op: operators) {
+        std::cout << op.name << ' ';
+    }
+    std::cout << '\n';
+
     axioms = read_actions(in, true, use_metric, variables);
     /* TODO: We should be stricter here and verify that we
        have reached the end of "in". */
