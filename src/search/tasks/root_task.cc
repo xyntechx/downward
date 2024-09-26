@@ -324,9 +324,9 @@ static vector<ExplicitOperator> read_actions(
     return actions;
 }
 
-static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> operators) {
+static vector<ExplicitOperator> generate_double_macros(vector<ExplicitOperator> operators) {
     vector<ExplicitOperator> new_ops;
-    new_ops.reserve(operators.size() * 2); // we're duplicating each action once
+    new_ops.reserve(operators.size() * 2);
 
     // New operators vector has two copies of each action
     for (tasks::ExplicitOperator op: operators) {
@@ -337,13 +337,12 @@ static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> opera
         vector<FactPair> pres;
         vector<FactPair> posts;
 
-        for (int i = 0; i < op.effects.size(); ++i) {
+        for (u_long i = 0; i < op.effects.size(); ++i) {
             pres.push_back(op.effects[i].conditions.front());
             posts.push_back(op.effects[i].fact);
         }
 
-        for (int i = 0; i < double_op.effects.size(); ++i) {
-            FactPair pre = double_op.effects[i].conditions.front();
+        for (u_long i = 0; i < double_op.effects.size(); ++i) {
             FactPair post = double_op.effects[i].fact;
 
             // Here we are making the assumption that a
@@ -354,13 +353,48 @@ static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> opera
             int index = std::distance(pres.begin(), it);
             post = posts[index];
 
-            double_op.effects[i].fact = post; // updating the post of the two-effect macro
-            // note that the pre of the two-effect macro is the same as the pre of the primitive action
+            double_op.effects[i].fact = post; // updating the post of the two-step macro
+            // note that the pre of the two-step macro is the same as the pre of the primitive action
         }
         new_ops.push_back(double_op);
     }
 
-    return new_ops;
+    vector<ExplicitOperator> final_ops;
+    final_ops.reserve(new_ops.size());
+
+    for (u_long i = 0; i < new_ops.size(); ++i) {
+        ExplicitOperator op1 = new_ops[i];
+        bool is_duplicate = false;
+
+        vector<FactPair> pres1;
+        vector<FactPair> posts1;
+        for (u_long k = 0; k < op1.effects.size(); ++k) {
+            pres1.push_back(op1.effects[k].conditions.front());
+            posts1.push_back(op1.effects[k].fact);
+        }
+
+        for (u_long j = i+1; j < new_ops.size(); ++j) {
+            ExplicitOperator op2 = new_ops[j];
+
+            vector<FactPair> pres2;
+            vector<FactPair> posts2;
+            for (u_long k = 0; k < op2.effects.size(); ++k) {
+                pres2.push_back(op2.effects[k].conditions.front());
+                posts2.push_back(op2.effects[k].fact);
+            }
+
+            if (pres1 == pres2 && posts1 == posts2) {
+                is_duplicate = true;
+                break;
+            }
+        }
+
+        if (!is_duplicate) {
+            final_ops.push_back(op1);
+        }
+    }
+
+    return final_ops;
 }
 
 RootTask::RootTask(istream &in) {
@@ -386,7 +420,7 @@ RootTask::RootTask(istream &in) {
     check_facts(goals, variables);
     operators = read_actions(in, false, use_metric, variables);
 
-    operators = duplicate_actions(operators);
+    operators = generate_double_macros(operators);
     std::cout << "Operators: ";
     for (tasks::ExplicitOperator op: operators) {
         std::cout << op.name << ' ';
