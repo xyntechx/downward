@@ -12,6 +12,7 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
+#include <random>
 
 
 using namespace std;
@@ -330,12 +331,14 @@ static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> opera
 
     // New operators vector has two copies of each action
     for (tasks::ExplicitOperator op: operators) {
-        string og_name = op.name;
-        op.name = "alt_" + og_name;
         new_ops.push_back(op);
-        op.name = og_name;
+        op.name = "alt_" + op.name;
         new_ops.push_back(op);
     }
+
+    auto rd = std::random_device {}; 
+    auto rng = std::default_random_engine { rd() };
+    std::shuffle(std::begin(new_ops), std::end(new_ops), rng);
 
     return new_ops;
 }
