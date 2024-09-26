@@ -324,6 +324,45 @@ static vector<ExplicitOperator> read_actions(
     return actions;
 }
 
+static vector<ExplicitOperator> duplicate_actions(vector<ExplicitOperator> operators) {
+    vector<ExplicitOperator> new_ops;
+    new_ops.reserve(operators.size() * 2); // we're duplicating each action once
+
+    // New operators vector has two copies of each action
+    for (tasks::ExplicitOperator op: operators) {
+        new_ops.push_back(op);
+        ExplicitOperator double_op = op;
+        double_op.name = "double_" + op.name;
+
+        vector<FactPair> pres;
+        vector<FactPair> posts;
+
+        for (int i = 0; i < op.effects.size(); ++i) {
+            pres.push_back(op.effects[i].conditions.front());
+            posts.push_back(op.effects[i].fact);
+        }
+
+        for (int i = 0; i < double_op.effects.size(); ++i) {
+            FactPair pre = double_op.effects[i].conditions.front();
+            FactPair post = double_op.effects[i].fact;
+
+            // Here we are making the assumption that a
+            // FactPair at some index i in PRES and a
+            // FactPair at some index i in POSTS
+            // describe/constitute the same action
+            auto it = find(pres.begin(), pres.end(), post);
+            int index = std::distance(pres.begin(), it);
+            post = posts[index];
+
+            double_op.effects[i].fact = post; // updating the post of the two-effect macro
+            // note that the pre of the two-effect macro is the same as the pre of the primitive action
+        }
+        new_ops.push_back(double_op);
+    }
+
+    return new_ops;
+}
+
 RootTask::RootTask(istream &in) {
     read_and_verify_version(in);
     bool use_metric = read_metric(in);
@@ -346,6 +385,14 @@ RootTask::RootTask(istream &in) {
     goals = read_goal(in);
     check_facts(goals, variables);
     operators = read_actions(in, false, use_metric, variables);
+
+    operators = duplicate_actions(operators);
+    std::cout << "Operators: ";
+    for (tasks::ExplicitOperator op: operators) {
+        std::cout << op.name << ' ';
+    }
+    std::cout << '\n';
+
     axioms = read_actions(in, true, use_metric, variables);
     /* TODO: We should be stricter here and verify that we
        have reached the end of "in". */
