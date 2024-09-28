@@ -52,6 +52,12 @@ struct ExplicitOperator {
 };
 
 
+struct PrePost {
+    FactPair pre;
+    FactPair post;
+};
+
+
 class RootTask : public AbstractTask {
     vector<ExplicitVariable> variables;
     // TODO: think about using hash sets here.
@@ -328,34 +334,31 @@ static vector<ExplicitOperator> generate_double_macros(vector<ExplicitOperator> 
     vector<ExplicitOperator> new_ops;
     new_ops.reserve(operators.size() * 2);
 
-    // New operators vector has two copies of each action
     for (tasks::ExplicitOperator op: operators) {
         new_ops.push_back(op);
         ExplicitOperator double_op = op;
         double_op.name = "double_" + op.name;
 
-        vector<FactPair> pres;
-        vector<FactPair> posts;
+        vector<PrePost> preposts;
 
-        for (u_long i = 0; i < op.effects.size(); ++i) {
-            pres.push_back(op.effects[i].conditions.front());
-            posts.push_back(op.effects[i].fact);
+        for (ExplicitEffect eff: op.effects) {
+            FactPair post = eff.fact;
+            for (FactPair pre: eff.conditions) {
+                PrePost pp = {pre, post};
+                preposts.push_back(pp);
+            }
         }
 
-        for (u_long i = 0; i < double_op.effects.size(); ++i) {
-            FactPair post = double_op.effects[i].fact;
-
-            // Here we are making the assumption that a
-            // FactPair at some index i in PRES and a
-            // FactPair at some index i in POSTS
-            // describe/constitute the same action
-            auto it = find(pres.begin(), pres.end(), post);
-            int index = std::distance(pres.begin(), it);
-            post = posts[index];
-
-            double_op.effects[i].fact = post; // updating the post of the two-step macro
-            // note that the pre of the two-step macro is the same as the pre of the primitive action
+        for (ExplicitEffect &eff: double_op.effects) {
+            FactPair intermediate_post = eff.fact;
+            for (PrePost pp: preposts) {
+                if (pp.pre == intermediate_post) {
+                    eff.fact = pp.post;
+                    break;
+                };
+            }
         }
+
         new_ops.push_back(double_op);
     }
 
@@ -368,9 +371,11 @@ static vector<ExplicitOperator> generate_double_macros(vector<ExplicitOperator> 
 
         vector<FactPair> pres1;
         vector<FactPair> posts1;
-        for (u_long k = 0; k < op1.effects.size(); ++k) {
-            pres1.push_back(op1.effects[k].conditions.front());
-            posts1.push_back(op1.effects[k].fact);
+        for (ExplicitEffect eff: op1.effects) {
+            for (FactPair pre: eff.conditions) {
+                pres1.push_back(pre);
+            }
+            posts1.push_back(eff.fact);
         }
 
         for (u_long j = i+1; j < new_ops.size(); ++j) {
@@ -378,12 +383,15 @@ static vector<ExplicitOperator> generate_double_macros(vector<ExplicitOperator> 
 
             vector<FactPair> pres2;
             vector<FactPair> posts2;
-            for (u_long k = 0; k < op2.effects.size(); ++k) {
-                pres2.push_back(op2.effects[k].conditions.front());
-                posts2.push_back(op2.effects[k].fact);
+            for (ExplicitEffect eff: op2.effects) {
+                for (FactPair pre: eff.conditions) {
+                    pres2.push_back(pre);
+                }
+                posts2.push_back(eff.fact);
             }
 
             if (pres1 == pres2 && posts1 == posts2) {
+                // If elements and their order match
                 is_duplicate = true;
                 break;
             }
