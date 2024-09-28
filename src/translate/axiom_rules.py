@@ -1,4 +1,3 @@
-import options
 import pddl
 import sccs
 import timers

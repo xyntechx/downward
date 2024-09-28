@@ -21,9 +21,13 @@ class Condition:
     def __le__(self, other):
         return self.hash <= other.hash
     def dump(self, indent="  "):
-        print("%s%s" % (indent, self._dump()))
+        print(self.dumps(indent))
+    def dumps(self, indent="  "):
+        s = ""
+        s += ("%s%s\n" % (indent, self._dump()))
         for part in self.parts:
-            part.dump(indent + "  ")
+            s += part.dumps(indent + "  ") + "\n"
+        return s
     def _dump(self):
         return self.__class__.__name__
     def _postorder_visit(self, method_name, *args):
@@ -115,17 +119,37 @@ class JunctorCondition(Condition):
 class Conjunction(JunctorCondition):
     def _simplified(self, parts):
         result_parts = []
+        disjunctive_parts = []
         for part in parts:
             if isinstance(part, Conjunction):
                 result_parts += part.parts
+            elif isinstance(part, Disjunction):
+                disjunctive_parts.append(part)
             elif isinstance(part, Falsity):
                 return Falsity()
             elif not isinstance(part, Truth):
                 result_parts.append(part)
+        # Simplify supersets: and(A, or(A, B)) => and(A)
+        covered_clauses = set(result_parts)
+        for part in disjunctive_parts:
+            if any(subpart in covered_clauses for subpart in part.parts):
+                continue
+            result_parts.append(part)
+        # Simplify conditions with 0 or 1 parts
         if not result_parts:
             return Truth()
         if len(result_parts) == 1:
             return result_parts[0]
+        # Simplify contradictions
+        atoms = set()
+        for part in result_parts:
+            if not is_atomic(part):
+                continue
+            if part.negate() in atoms:
+                return Falsity()
+            atoms.add(part)
+        # Simplify redundancies
+        result_parts = list(set(result_parts))
         return Conjunction(result_parts)
     def to_untyped_strips(self):
         result = []
@@ -142,17 +166,36 @@ class Conjunction(JunctorCondition):
 class Disjunction(JunctorCondition):
     def _simplified(self, parts):
         result_parts = []
+        conjunctive_parts = []
         for part in parts:
             if isinstance(part, Disjunction):
                 result_parts += part.parts
+            elif isinstance(part, Conjunction):
+                conjunctive_parts.append(part)
             elif isinstance(part, Truth):
                 return Truth()
             elif not isinstance(part, Falsity):
                 result_parts.append(part)
+        # Simplify subsets: or(A, and(A, B)) => or(A)
+        covered_clauses = set(result_parts)
+        for part in conjunctive_parts:
+            if any(subpart in covered_clauses for subpart in part.parts):
+                continue
+            result_parts.append(part)
+        # Simplify conditions with 0 or 1 parts
         if not result_parts:
             return Falsity()
         if len(result_parts) == 1:
             return result_parts[0]
+        # Simplify tautologies
+        atoms = set()
+        for part in result_parts:
+            if is_atomic(part):
+                if part.negate() in atoms:
+                    return Truth()
+                atoms.add(part)
+        # Remove duplicates
+        result_parts = list(set(result_parts))
         return Disjunction(result_parts)
     def negate(self):
         return Conjunction([p.negate() for p in self.parts])
@@ -296,3 +339,6 @@ class NegatedAtom(Literal):
     def negate(self):
         return Atom(self.predicate, self.args)
     positive = negate
+
+def is_atomic(condition: Condition):
+    return isinstance(condition, Atom) or isinstance(condition, NegatedAtom)

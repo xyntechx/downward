@@ -183,48 +183,48 @@ def remove_universal_quantifiers(task):
 # (1) or(phi, or(psi, psi'))      ==  or(phi, psi, psi')
 # (2) exists(vars, or(phi, psi))  ==  or(exists(vars, phi), exists(vars, psi))
 # (3) and(phi, or(psi, psi'))     ==  or(and(phi, psi), and(phi, psi'))
-def build_DNF(task):
-    def recurse(condition):
-        disjunctive_parts = []
-        other_parts = []
-        for part in condition.parts:
-            part = recurse(part)
-            if isinstance(part, pddl.Disjunction):
-                disjunctive_parts.append(part)
-            else:
-                other_parts.append(part)
-        if not disjunctive_parts:
-            return condition
+def convert_to_DNF(condition):
+    disjunctive_parts = []
+    other_parts = []
+    for part in condition.parts:
+        part = convert_to_DNF(part)
+        if isinstance(part, pddl.Disjunction):
+            disjunctive_parts.append(part)
+        else:
+            other_parts.append(part)
+    if not disjunctive_parts:
+        return condition
 
-        # Rule (1): Associativity of disjunction.
-        if isinstance(condition, pddl.Disjunction):
-            result_parts = other_parts
-            for part in disjunctive_parts:
-                result_parts.extend(part.parts)
-            return pddl.Disjunction(result_parts)
-
-        # Rule (2): Distributivity disjunction/existential quantification.
-        if isinstance(condition, pddl.ExistentialCondition):
-            parameters = condition.parameters
-            result_parts = [pddl.ExistentialCondition(parameters, (part,))
-                            for part in disjunctive_parts[0].parts]
-            return pddl.Disjunction(result_parts)
-
-        # Rule (3): Distributivity disjunction/conjunction.
-        assert isinstance(condition, pddl.Conjunction)
-        result_parts = [pddl.Conjunction(other_parts)]
-        while disjunctive_parts:
-            previous_result_parts = result_parts
-            result_parts = []
-            parts_to_distribute = disjunctive_parts.pop().parts
-            for part1 in previous_result_parts:
-                for part2 in parts_to_distribute:
-                    result_parts.append(pddl.Conjunction((part1, part2)))
+    # Rule (1): Associativity of disjunction.
+    if isinstance(condition, pddl.Disjunction):
+        result_parts = other_parts
+        for part in disjunctive_parts:
+            result_parts.extend(part.parts)
         return pddl.Disjunction(result_parts)
 
+    # Rule (2): Distributivity disjunction/existential quantification.
+    if isinstance(condition, pddl.ExistentialCondition):
+        parameters = condition.parameters
+        result_parts = [pddl.ExistentialCondition(parameters, (part,))
+                        for part in disjunctive_parts[0].parts]
+        return pddl.Disjunction(result_parts)
+
+    # Rule (3): Distributivity disjunction/conjunction.
+    assert isinstance(condition, pddl.Conjunction)
+    result_parts = [pddl.Conjunction(other_parts)]
+    while disjunctive_parts:
+        previous_result_parts = result_parts
+        result_parts = []
+        parts_to_distribute = disjunctive_parts.pop().parts
+        for part1 in previous_result_parts:
+            for part2 in parts_to_distribute:
+                result_parts.append(pddl.Conjunction((part1, part2)))
+    return pddl.Disjunction(result_parts)
+
+def build_DNF(task):
     for proxy in all_conditions(task):
         if proxy.condition.has_disjunction():
-            proxy.set(recurse(proxy.condition).simplified())
+            proxy.set(convert_to_DNF(proxy.condition).simplified())
 
 # [3] Split conditions at the outermost disjunction.
 def split_disjunctions(task):

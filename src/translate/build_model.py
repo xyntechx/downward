@@ -276,6 +276,12 @@ class MatchGenerator:
             self.next.dump(indent + "    ")
 
 class Queue:
+    """
+    Queue backed by a set and a list. Memory is only freed when the queue is destroyed.
+
+    .push(x, args) appends (x, *args) to list
+    .pop() returns the value at the current pointer position, and increments the pointer
+    """
     def __init__(self, atoms):
         self.queue = atoms
         self.queue_pos = 0
