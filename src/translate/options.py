@@ -5,9 +5,12 @@ import sys
 def parse_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument(
-        "domain", help="path to domain pddl file")
+        "domain", nargs="?", help="path to domain pddl file", default=None
+    )
     argparser.add_argument(
-        "task", help="path to task pddl file")
+        "task", nargs="?", help="path to task pddl file", default=None
+    )
+    argparser.add_argument("--f", help="Fool iPython")
     argparser.add_argument(
         "--relaxed", dest="generate_relaxed_task", action="store_true",
         help="output relaxed task (no delete effects)")
