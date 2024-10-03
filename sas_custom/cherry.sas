@@ -54,11 +54,10 @@ end_goal
 5
 begin_operator
 a1
-1
-1 0
+0
 2
 0 0 0 2
-0 2 -1 0
+0 1 0 1
 1
 end_operator
 begin_operator
@@ -94,7 +93,7 @@ a5
 0
 2
 0 0 2 1
-0 2 0 3
+0 1 1 0
 1
 end_operator
 0
