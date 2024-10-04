@@ -12,6 +12,7 @@
 #include <set>
 #include <unordered_set>
 #include <vector>
+#include <sys/types.h>
 
 
 using namespace std;
@@ -53,8 +54,8 @@ struct ExplicitOperator {
 
 
 struct PrePost {
-    FactPair pre;
     FactPair post;
+    vector<FactPair> pres;
 };
 
 
@@ -330,81 +331,6 @@ static vector<ExplicitOperator> read_actions(
     return actions;
 }
 
-// static vector<ExplicitOperator> create_double_macros(vector<ExplicitOperator> operators) {
-//     vector<ExplicitOperator> new_ops;
-//     new_ops.reserve(operators.size() * 2);
-
-//     for (tasks::ExplicitOperator op: operators) {
-//         new_ops.push_back(op);
-//         ExplicitOperator double_op = op;
-//         double_op.name = "double_" + op.name;
-
-//         vector<PrePost> preposts;
-
-//         for (ExplicitEffect eff: op.effects) {
-//             FactPair post = eff.fact;
-//             for (FactPair pre: eff.conditions) {
-//                 PrePost pp = {pre, post};
-//                 preposts.push_back(pp);
-//             }
-//         }
-
-//         for (ExplicitEffect &eff: double_op.effects) {
-//             FactPair intermediate_post = eff.fact;
-//             for (PrePost pp: preposts) {
-//                 if (pp.pre == intermediate_post) {
-//                     eff.fact = pp.post;
-//                     break;
-//                 };
-//             }
-//         }
-
-//         new_ops.push_back(double_op);
-//     }
-
-//     vector<ExplicitOperator> final_ops;
-//     final_ops.reserve(new_ops.size());
-
-//     for (u_long i = 0; i < new_ops.size(); ++i) {
-//         ExplicitOperator op1 = new_ops[i];
-//         bool is_duplicate = false;
-
-//         vector<FactPair> pres1;
-//         vector<FactPair> posts1;
-//         for (ExplicitEffect eff: op1.effects) {
-//             for (FactPair pre: eff.conditions) {
-//                 pres1.push_back(pre);
-//             }
-//             posts1.push_back(eff.fact);
-//         }
-
-//         for (u_long j = i+1; j < new_ops.size(); ++j) {
-//             ExplicitOperator op2 = new_ops[j];
-
-//             vector<FactPair> pres2;
-//             vector<FactPair> posts2;
-//             for (ExplicitEffect eff: op2.effects) {
-//                 for (FactPair pre: eff.conditions) {
-//                     pres2.push_back(pre);
-//                 }
-//                 posts2.push_back(eff.fact);
-//             }
-
-//             if (pres1 == pres2 && posts1 == posts2) {
-//                 // If elements and their order match
-//                 is_duplicate = true;
-//                 break;
-//             }
-//         }
-
-//         if (!is_duplicate) {
-//             final_ops.push_back(op1);
-//         }
-//     }
-
-//     return final_ops;
-// }
-
 static vector<vector<ExplicitOperator>> generate_double_macros(vector<ExplicitOperator> operators) {
     // Macros generated can be valid or invalid (checked by compose_macro)
     // Only used temporarily; in the future, we will learn macros using BFS
@@ -426,7 +352,8 @@ static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
     vector<FactPair> preconds;
     vector<ExplicitEffect> effects;
 
-    for (ExplicitOperator op: sequence) {
+    for (u_long op_idx = 0; op_idx < sequence.size(); ++op_idx) {
+        ExplicitOperator op = sequence[op_idx];
         vector<FactPair> posts;
         for (ExplicitEffect eff: effects) {
             posts.push_back(eff.fact);
@@ -492,6 +419,26 @@ static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
                 effects = new_effects;
             }
         }
+
+        vector<PrePost> postpres;
+        if (op_idx > 0) {
+            ExplicitOperator prev_op = sequence[op_idx - 1];
+            std::cout << "kys" << prev_op.name << '\n';
+            for (ExplicitEffect prev_eff: prev_op.effects) {
+                postpres.push_back({prev_eff.fact, prev_eff.conditions});
+            }
+        }
+
+        for (ExplicitEffect &eff: effects) {
+            for (PrePost pp: postpres) {
+                if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
+                    std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
+                    eff.conditions = pp.pres;
+                    break;
+                };
+            }
+        }
+
         macro.name += op.name;
     }
 
@@ -562,7 +509,7 @@ RootTask::RootTask(istream &in) {
     goals = read_goal(in);
     check_facts(goals, variables);
     operators = read_actions(in, false, use_metric, variables);
-    
+
     vector<vector<ExplicitOperator>> potential_macros = generate_double_macros(operators);
     for (vector<ExplicitOperator> seq: potential_macros) {
         ExplicitOperator macro = compose_macro(seq);
@@ -574,8 +521,8 @@ RootTask::RootTask(istream &in) {
     for (tasks::ExplicitOperator op: operators) {
         std::cout << op.name << ' ' << op.preconditions << "         ";
         for (ExplicitEffect eff: op.effects) {
-            // std::cout << eff.conditions << ' ' << eff.fact << ' ';
-            std::cout << eff.fact << ' ';
+            std::cout << eff.conditions << ' ' << eff.fact << ' ';
+            // std::cout << eff.fact << ' ';
         }
         std::cout << '\n';
     }
