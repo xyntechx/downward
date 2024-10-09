@@ -392,38 +392,41 @@ static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
             }
         }
 
-        for (ExplicitEffect eff: op.effects) {
-            // Check whether any effect condition is violated
-            int count_violated = 0;
-            for (FactPair g_fact: guaranteed_facts) {
-                for (FactPair c_fact: eff.conditions) {
-                    if (g_fact.var == c_fact.var && g_fact.value != c_fact.value) {
-                        ++count_violated;
-                        break;
+        bool has_preconds = preconds.size() > 0;
+        if (!has_preconds) {
+            effects = op.effects;
+        } else {
+            for (ExplicitEffect eff: op.effects) {
+                // Check whether any effect condition is violated
+                int count_violated = 0;
+                for (FactPair g_fact: guaranteed_facts) {
+                    for (FactPair c_fact: eff.conditions) {
+                        if (g_fact.var == c_fact.var && g_fact.value != c_fact.value) {
+                            ++count_violated;
+                            break;
+                        }
                     }
                 }
-            }
 
-            // Run post only if the effect's conditions are satisfied
-            // Note that macro is still valid even if these conditions are NOT satisfied
-            // because these conditions are just to determine whether this particular effect can run
-            if (count_violated == 0) {
-                vector<ExplicitEffect> new_effects;
-                for (ExplicitEffect m_eff: effects) {
-                    if (m_eff.fact.var != eff.fact.var) {
-                        // Overwriting an old effect if it has the same var as the new effect
-                        new_effects.push_back(m_eff);
+                // Run post only if the effect's conditions are satisfied
+                // Note that macro is still valid even if these conditions are NOT satisfied
+                // because these conditions are just to determine whether this particular effect can run
+                if (count_violated == 0) {
+                    vector<ExplicitEffect> new_effects;
+                    for (ExplicitEffect m_eff: effects) {
+                        if (m_eff.fact.var != eff.fact.var) {
+                            new_effects.push_back(m_eff);
+                        }
                     }
+                    new_effects.push_back(eff);
+                    effects = new_effects;
                 }
-                new_effects.push_back(eff); // Overwriting old effect (continued)
-                effects = new_effects;
             }
         }
 
         vector<PrePost> postpres;
         if (op_idx > 0) {
             ExplicitOperator prev_op = sequence[op_idx - 1];
-            std::cout << "kys" << prev_op.name << '\n';
             for (ExplicitEffect prev_eff: prev_op.effects) {
                 postpres.push_back({prev_eff.fact, prev_eff.conditions});
             }
