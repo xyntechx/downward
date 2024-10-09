@@ -394,7 +394,41 @@ static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
 
         bool has_preconds = preconds.size() > 0;
         if (!has_preconds) {
-            effects = op.effects;
+            vector<ExplicitEffect> updated_effects = op.effects;
+
+
+            vector<PrePost> postpres;
+            if (op_idx > 0) {
+                ExplicitOperator prev_op = sequence[op_idx - 1];
+                for (ExplicitEffect prev_eff: prev_op.effects) {
+                    postpres.push_back({prev_eff.fact, prev_eff.conditions});
+                }
+            }
+
+            for (ExplicitEffect &eff: updated_effects) {
+                for (PrePost pp: postpres) {
+                    if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
+                        std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
+                        eff.conditions = pp.pres;
+                        break;
+                    };
+                }
+            }
+
+            vector<vector<FactPair>> included_effconds;
+
+            for (ExplicitEffect eff: op.effects) {
+                included_effconds.push_back(eff.conditions);
+            }
+
+            for (ExplicitEffect old_eff: effects) {
+                if (std::find(included_effconds.begin(), included_effconds.end(), old_eff.conditions) == included_effconds.end()) {
+                    updated_effects.push_back(old_eff);
+                    included_effconds.push_back(old_eff.conditions);
+                }
+            }
+
+            effects = updated_effects;
         } else {
             for (ExplicitEffect eff: op.effects) {
                 // Check whether any effect condition is violated
@@ -421,24 +455,6 @@ static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
                     new_effects.push_back(eff);
                     effects = new_effects;
                 }
-            }
-        }
-
-        vector<PrePost> postpres;
-        if (op_idx > 0) {
-            ExplicitOperator prev_op = sequence[op_idx - 1];
-            for (ExplicitEffect prev_eff: prev_op.effects) {
-                postpres.push_back({prev_eff.fact, prev_eff.conditions});
-            }
-        }
-
-        for (ExplicitEffect &eff: effects) {
-            for (PrePost pp: postpres) {
-                if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
-                    std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
-                    eff.conditions = pp.pres;
-                    break;
-                };
             }
         }
 
