@@ -30,6 +30,11 @@ class SuccessorGenerator;
 
 enum SearchStatus {IN_PROGRESS, TIMEOUT, FAILED, SOLVED};
 
+struct Macro {
+    int eff_size;
+    std::vector<std::string> sequence;
+};
+
 class SearchAlgorithm {
     std::string description;
     SearchStatus status;
@@ -52,12 +57,14 @@ protected:
     OperatorCost cost_type;
     bool is_unit_cost;
     double max_time;
-
+    std::vector<Macro> saved_macros;
     virtual void initialize() {}
     virtual SearchStatus step() = 0;
 
     void set_plan(const Plan &plan);
     bool check_goal_and_set_plan(const State &state);
+    void save_macro_so_far(const State &state);
+    void write_macros();
     int get_adjusted_cost(const OperatorProxy &op) const;
 public:
     SearchAlgorithm(

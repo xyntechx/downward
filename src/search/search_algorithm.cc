@@ -12,6 +12,7 @@
 #include "utils/rng_options.h"
 #include "utils/system.h"
 #include "utils/timer.h"
+#include <fstream>
 
 #include <cassert>
 #include <iostream>
@@ -55,7 +56,8 @@ SearchAlgorithm::SearchAlgorithm(
       bound(bound),
       cost_type(cost_type),
       is_unit_cost(task_properties::is_unit_cost(task_proxy)),
-      max_time(max_time) {
+      max_time(max_time),
+      saved_macros({}) {
     if (bound < 0) {
         cerr << "error: negative cost bound " << bound << endl;
         utils::exit_with(ExitCode::SEARCH_INPUT_ERROR);
@@ -107,9 +109,19 @@ void SearchAlgorithm::set_plan(const Plan &p) {
     plan = p;
 }
 
+void SearchAlgorithm::write_macros() {
+    ofstream outfile("saved_macros.txt");
+    for (Macro macro : saved_macros) {
+        outfile << macro.sequence << " (" << macro.eff_size + macro.sequence.size() << ")" << '\n';
+    }
+}
+
 void SearchAlgorithm::search() {
     initialize();
     utils::CountdownTimer timer(max_time);
+    int MACRO_SEARCH_BUDGET = 1000000;
+    int counter = 0;
+
     while (status == IN_PROGRESS) {
         status = step();
         if (timer.is_expired()) {
@@ -117,9 +129,61 @@ void SearchAlgorithm::search() {
             status = TIMEOUT;
             break;
         }
+
+        ++counter;
+        if (counter == MACRO_SEARCH_BUDGET) {
+            write_macros();
+            break;
+        }
     }
     // TODO: Revise when and which search times are logged.
     log << "Actual search time: " << timer.get_elapsed_time() << endl;
+
+    write_macros();
+}
+
+void SearchAlgorithm::save_macro_so_far(const State &state) {
+    vector<OperatorID> path;
+    vector<string> sequence;
+    search_space.trace_path(state, path);
+
+    for (OperatorID op_id : path) {
+        OperatorProxy op = task_proxy.get_operators()[op_id];
+        sequence.push_back(op.get_name());
+    }
+
+    int net_eff_size = 0;
+
+    for (FactProxy init_state : task_proxy.get_initial_state()) {
+        const VariableProxy var = init_state.get_variable();
+        if (state[var] != init_state) {
+            ++net_eff_size;
+        }
+    }
+
+    if (net_eff_size == 0) {
+        return;
+    }
+
+    Macro macro;
+    macro.eff_size = net_eff_size;
+    macro.sequence = sequence;
+
+    saved_macros.push_back(macro);
+
+    int MAX_SAVED_MACROS_SIZE = 5760;
+    // int MAX_SAVED_MACROS_SIZE = 100;
+
+    if ((int) saved_macros.size() > MAX_SAVED_MACROS_SIZE) {
+        struct eff_size_comp{
+            bool operator()(const Macro& a, const Macro& b) const {
+                return a.eff_size + a.sequence.size() < b.eff_size + b.sequence.size(); // max heap to easily remove worst macro
+            }
+        };
+        std::make_heap(saved_macros.begin(), saved_macros.end(), eff_size_comp()); // make heap
+        std::pop_heap(saved_macros.begin(), saved_macros.end(), eff_size_comp()); // move largest eff size macro to the end
+        saved_macros.pop_back(); // actually remove largest eff size macro
+    }
 }
 
 bool SearchAlgorithm::check_goal_and_set_plan(const State &state) {

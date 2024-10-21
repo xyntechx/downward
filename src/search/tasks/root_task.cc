@@ -331,180 +331,180 @@ static vector<ExplicitOperator> read_actions(
     return actions;
 }
 
-static vector<vector<ExplicitOperator>> generate_double_macros(vector<ExplicitOperator> operators) {
-    // Macros generated can be valid or invalid (checked by compose_macro)
-    // Only used temporarily; in the future, we will learn macros using BFS
-    vector<vector<ExplicitOperator>> macros;
+// static vector<vector<ExplicitOperator>> generate_double_macros(vector<ExplicitOperator> operators) {
+//     // Macros generated can be valid or invalid (checked by compose_macro)
+//     // Only used temporarily; in the future, we will learn macros using BFS
+//     vector<vector<ExplicitOperator>> macros;
 
-    for (ExplicitOperator op1: operators) {
-        for (ExplicitOperator op2: operators) {
-            macros.push_back({op1, op2});
-        }
-    }
+//     for (ExplicitOperator op1: operators) {
+//         for (ExplicitOperator op2: operators) {
+//             macros.push_back({op1, op2});
+//         }
+//     }
 
-    return macros;
-}
+//     return macros;
+// }
 
-static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
-    ExplicitOperator macro = sequence[0]; // arbitrarily initialize with 0th operator
-    macro.name = "";
+// static ExplicitOperator compose_macro(vector<ExplicitOperator> sequence) {
+//     ExplicitOperator macro = sequence[0]; // arbitrarily initialize with 0th operator
+//     macro.name = "";
 
-    vector<FactPair> preconds;
-    vector<ExplicitEffect> effects;
+//     vector<FactPair> preconds;
+//     vector<ExplicitEffect> effects;
 
-    for (u_long op_idx = 0; op_idx < sequence.size(); ++op_idx) {
-        ExplicitOperator op = sequence[op_idx];
-        vector<FactPair> posts;
-        for (ExplicitEffect eff: effects) {
-            posts.push_back(eff.fact);
-        }
+//     for (u_long op_idx = 0; op_idx < sequence.size(); ++op_idx) {
+//         ExplicitOperator op = sequence[op_idx];
+//         vector<FactPair> posts;
+//         for (ExplicitEffect eff: effects) {
+//             posts.push_back(eff.fact);
+//         }
 
-        vector<FactPair> guaranteed_facts = posts;
+//         vector<FactPair> guaranteed_facts = posts;
 
-        // Getting guaranteed_facts: all facts in posts and facts in preconds whose respective vars aren't in posts
-        vector<int> post_vars;
-        for (FactPair pair: posts) {
-            post_vars.push_back(pair.var);
-        }
-        for (FactPair pair: preconds) {
-            if (std::find(post_vars.begin(), post_vars.end(), pair.var) == post_vars.end()) {
-                guaranteed_facts.push_back(pair);
-            }
-        }
+//         // Getting guaranteed_facts: all facts in posts and facts in preconds whose respective vars aren't in posts
+//         vector<int> post_vars;
+//         for (FactPair pair: posts) {
+//             post_vars.push_back(pair.var);
+//         }
+//         for (FactPair pair: preconds) {
+//             if (std::find(post_vars.begin(), post_vars.end(), pair.var) == post_vars.end()) {
+//                 guaranteed_facts.push_back(pair);
+//             }
+//         }
 
-        for (FactPair precond: op.preconditions) {
-            // Check whether any precondition is violated by guaranteed_facts
-            for (FactPair g_fact: guaranteed_facts) {
-                if (precond.var == g_fact.var && precond.value != g_fact.value) {
-                    // invalid macro
-                    macro.name = "INVALID_MACRO";
-                    return macro;
-                }
-            }
+//         for (FactPair precond: op.preconditions) {
+//             // Check whether any precondition is violated by guaranteed_facts
+//             for (FactPair g_fact: guaranteed_facts) {
+//                 if (precond.var == g_fact.var && precond.value != g_fact.value) {
+//                     // invalid macro
+//                     macro.name = "INVALID_MACRO";
+//                     return macro;
+//                 }
+//             }
 
-            // Include precond in overall preconds
-            // if this fact has not been satisfied by the prev operator's post
-            // and is not already in preconds
-            bool is_fact_in_posts = std::find(posts.begin(), posts.end(), precond) != posts.end();
-            bool is_fact_in_preconds = std::find(preconds.begin(), preconds.end(), precond) != preconds.end();
-            if (!is_fact_in_posts && !is_fact_in_preconds) {
-                preconds.push_back(precond);
-            }
-        }
+//             // Include precond in overall preconds
+//             // if this fact has not been satisfied by the prev operator's post
+//             // and is not already in preconds
+//             bool is_fact_in_posts = std::find(posts.begin(), posts.end(), precond) != posts.end();
+//             bool is_fact_in_preconds = std::find(preconds.begin(), preconds.end(), precond) != preconds.end();
+//             if (!is_fact_in_posts && !is_fact_in_preconds) {
+//                 preconds.push_back(precond);
+//             }
+//         }
 
-        bool has_preconds = preconds.size() > 0;
-        if (!has_preconds) {
-            vector<ExplicitEffect> updated_effects = op.effects;
+//         bool has_preconds = preconds.size() > 0;
+//         if (!has_preconds) {
+//             vector<ExplicitEffect> updated_effects = op.effects;
 
 
-            vector<PrePost> postpres;
-            if (op_idx > 0) {
-                ExplicitOperator prev_op = sequence[op_idx - 1];
-                for (ExplicitEffect prev_eff: prev_op.effects) {
-                    postpres.push_back({prev_eff.fact, prev_eff.conditions});
-                }
-            }
+//             vector<PrePost> postpres;
+//             if (op_idx > 0) {
+//                 ExplicitOperator prev_op = sequence[op_idx - 1];
+//                 for (ExplicitEffect prev_eff: prev_op.effects) {
+//                     postpres.push_back({prev_eff.fact, prev_eff.conditions});
+//                 }
+//             }
 
-            for (ExplicitEffect &eff: updated_effects) {
-                for (PrePost pp: postpres) {
-                    if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
-                        std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
-                        eff.conditions = pp.pres;
-                        break;
-                    };
-                }
-            }
+//             for (ExplicitEffect &eff: updated_effects) {
+//                 for (PrePost pp: postpres) {
+//                     if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
+//                         // std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
+//                         eff.conditions = pp.pres;
+//                         break;
+//                     };
+//                 }
+//             }
 
-            vector<vector<FactPair>> included_effconds;
+//             vector<vector<FactPair>> included_effconds;
 
-            for (ExplicitEffect eff: op.effects) {
-                included_effconds.push_back(eff.conditions);
-            }
+//             for (ExplicitEffect eff: op.effects) {
+//                 included_effconds.push_back(eff.conditions);
+//             }
 
-            for (ExplicitEffect old_eff: effects) {
-                if (std::find(included_effconds.begin(), included_effconds.end(), old_eff.conditions) == included_effconds.end()) {
-                    updated_effects.push_back(old_eff);
-                    included_effconds.push_back(old_eff.conditions);
-                }
-            }
+//             for (ExplicitEffect old_eff: effects) {
+//                 if (std::find(included_effconds.begin(), included_effconds.end(), old_eff.conditions) == included_effconds.end()) {
+//                     updated_effects.push_back(old_eff);
+//                     included_effconds.push_back(old_eff.conditions);
+//                 }
+//             }
 
-            effects = updated_effects;
-        } else {
-            for (ExplicitEffect eff: op.effects) {
-                // Check whether any effect condition is violated
-                int count_violated = 0;
-                for (FactPair g_fact: guaranteed_facts) {
-                    for (FactPair c_fact: eff.conditions) {
-                        if (g_fact.var == c_fact.var && g_fact.value != c_fact.value) {
-                            ++count_violated;
-                            break;
-                        }
-                    }
-                }
+//             effects = updated_effects;
+//         } else {
+//             for (ExplicitEffect eff: op.effects) {
+//                 // Check whether any effect condition is violated
+//                 int count_violated = 0;
+//                 for (FactPair g_fact: guaranteed_facts) {
+//                     for (FactPair c_fact: eff.conditions) {
+//                         if (g_fact.var == c_fact.var && g_fact.value != c_fact.value) {
+//                             ++count_violated;
+//                             break;
+//                         }
+//                     }
+//                 }
 
-                // Run post only if the effect's conditions are satisfied
-                // Note that macro is still valid even if these conditions are NOT satisfied
-                // because these conditions are just to determine whether this particular effect can run
-                if (count_violated == 0) {
-                    vector<ExplicitEffect> new_effects;
-                    for (ExplicitEffect m_eff: effects) {
-                        if (m_eff.fact.var != eff.fact.var) {
-                            new_effects.push_back(m_eff);
-                        }
-                    }
-                    new_effects.push_back(eff);
-                    effects = new_effects;
-                }
-            }
-        }
+//                 // Run post only if the effect's conditions are satisfied
+//                 // Note that macro is still valid even if these conditions are NOT satisfied
+//                 // because these conditions are just to determine whether this particular effect can run
+//                 if (count_violated == 0) {
+//                     vector<ExplicitEffect> new_effects;
+//                     for (ExplicitEffect m_eff: effects) {
+//                         if (m_eff.fact.var != eff.fact.var) {
+//                             new_effects.push_back(m_eff);
+//                         }
+//                     }
+//                     new_effects.push_back(eff);
+//                     effects = new_effects;
+//                 }
+//             }
+//         }
 
-        macro.name += op.name;
-    }
+//         macro.name += op.name;
+//     }
 
-    vector<FactPair> posts;
-    for (ExplicitEffect eff: effects) {
-        posts.push_back(eff.fact);
-    }
-    vector<int> post_vars;
-    for (FactPair pair: posts) {
-        post_vars.push_back(pair.var);
-    }
+//     vector<FactPair> posts;
+//     for (ExplicitEffect eff: effects) {
+//         posts.push_back(eff.fact);
+//     }
+//     vector<int> post_vars;
+//     for (FactPair pair: posts) {
+//         post_vars.push_back(pair.var);
+//     }
 
-    vector<FactPair> prevails;
-    for (FactPair precond: preconds) {
-        if (std::find(posts.begin(), posts.end(), precond) != posts.end()) {
-            prevails.push_back(precond);
-        } else if (std::find(post_vars.begin(), post_vars.end(), precond.var) == post_vars.end()) {
-            prevails.push_back(precond);
-        }
-    }
+//     vector<FactPair> prevails;
+//     for (FactPair precond: preconds) {
+//         if (std::find(posts.begin(), posts.end(), precond) != posts.end()) {
+//             prevails.push_back(precond);
+//         } else if (std::find(post_vars.begin(), post_vars.end(), precond.var) == post_vars.end()) {
+//             prevails.push_back(precond);
+//         }
+//     }
 
-    vector<FactPair> new_preconds;
-    for (FactPair pair: preconds) {
-        if (std::find(prevails.begin(), prevails.end(), pair) == prevails.end()) {
-            new_preconds.push_back(pair);
-        }
-    }
+//     vector<FactPair> new_preconds;
+//     for (FactPair pair: preconds) {
+//         if (std::find(prevails.begin(), prevails.end(), pair) == prevails.end()) {
+//             new_preconds.push_back(pair);
+//         }
+//     }
 
-    vector<ExplicitEffect> new_effects;
-    for (ExplicitEffect eff: effects) {
-        if (std::find(prevails.begin(), prevails.end(), eff.fact) == prevails.end()) {
-            new_effects.push_back(eff);
-        }
-    }
+//     vector<ExplicitEffect> new_effects;
+//     for (ExplicitEffect eff: effects) {
+//         if (std::find(prevails.begin(), prevails.end(), eff.fact) == prevails.end()) {
+//             new_effects.push_back(eff);
+//         }
+//     }
 
-    macro.effects = new_effects;
-    macro.preconditions = {};
-    // In downward, prevails come first before non-prevail preconds in the preconditions field of each operator
-    for (FactPair prevail: prevails) {
-        macro.preconditions.push_back(prevail);
-    }
-    for (FactPair precond: new_preconds) {
-        macro.preconditions.push_back(precond);
-    }
+//     macro.effects = new_effects;
+//     macro.preconditions = {};
+//     // In downward, prevails come first before non-prevail preconds in the preconditions field of each operator
+//     for (FactPair prevail: prevails) {
+//         macro.preconditions.push_back(prevail);
+//     }
+//     for (FactPair precond: new_preconds) {
+//         macro.preconditions.push_back(precond);
+//     }
 
-    return macro;
-}
+//     return macro;
+// }
 
 RootTask::RootTask(istream &in) {
     read_and_verify_version(in);
@@ -529,23 +529,23 @@ RootTask::RootTask(istream &in) {
     check_facts(goals, variables);
     operators = read_actions(in, false, use_metric, variables);
 
-    vector<vector<ExplicitOperator>> potential_macros = generate_double_macros(operators);
-    for (vector<ExplicitOperator> seq: potential_macros) {
-        ExplicitOperator macro = compose_macro(seq);
-        if (macro.name != "INVALID_MACRO")
-            operators.push_back(macro);
-    }
+    // vector<vector<ExplicitOperator>> potential_macros = generate_double_macros(operators);
+    // for (vector<ExplicitOperator> seq: potential_macros) {
+    //     ExplicitOperator macro = compose_macro(seq);
+    //     if (macro.name != "INVALID_MACRO")
+    //         operators.push_back(macro);
+    // }
 
     // std::cout << "Operators: ";
-    for (tasks::ExplicitOperator op: operators) {
-        std::cout << op.name << ' ' << op.preconditions << "         ";
-        for (ExplicitEffect eff: op.effects) {
-            std::cout << eff.conditions << ' ' << eff.fact << ' ';
-            // std::cout << eff.fact << ' ';
-        }
-        std::cout << '\n';
-    }
-    std::cout << '\n';
+    // for (tasks::ExplicitOperator op: operators) {
+    //     std::cout << op.name << ' ' << op.preconditions << "         ";
+    //     for (ExplicitEffect eff: op.effects) {
+    //         std::cout << eff.conditions << ' ' << eff.fact << ' ';
+    //         // std::cout << eff.fact << ' ';
+    //     }
+    //     std::cout << '\n';
+    // }
+    // std::cout << '\n';
 
     axioms = read_actions(in, true, use_metric, variables);
     /* TODO: We should be stricter here and verify that we

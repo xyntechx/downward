@@ -651,6 +651,13 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME eff_size_heuristic
+    HELP "The effect size heuristic"
+    SOURCES
+        heuristics/eff_size_heuristic
+)
+
+create_fast_downward_library(
     NAME hm_heuristic
     HELP "The h^m heuristic"
     SOURCES

@@ -27,6 +27,12 @@ int EffSizeHeuristic::compute_heuristic(const State &ancestor_state) {
             ++net_eff_size;
         }
     }
+
+    // Same as initial state
+    if (net_eff_size == 0) {
+        return 999;
+    }
+
     return net_eff_size;
 }
 
