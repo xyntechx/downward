@@ -2,6 +2,7 @@ __pycache__/
 /output.sas
 /sas_plan.*
 /builds/
+/build
 /misc/.tox/
 /misc/autodoc/downward-xmlrpc.secret
 /.vscode/
