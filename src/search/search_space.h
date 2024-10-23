@@ -51,6 +51,11 @@ public:
     void close();
     void mark_as_dead_end();
 
+    // int get_plan_depth();
+    // void update_plan_depth(const SearchNode &parent_node);
+    int get_step_count();
+    void update_step_count(int new_step_count);
+
     void dump(const TaskProxy &task_proxy, utils::LogProxy &log) const;
 };
 

@@ -15,10 +15,14 @@ struct SearchNodeInfo {
     StateID parent_state_id;
     OperatorID creating_operator;
     int real_g;
+    // int plan_depth;
+    int step_count;
 
     SearchNodeInfo()
         : status(NEW), g(-1), parent_state_id(StateID::no_state),
-          creating_operator(-1), real_g(-1) {
+          creating_operator(-1), real_g(-1), 
+        //   plan_depth(0) 
+          step_count(0) {
     }
 };
 

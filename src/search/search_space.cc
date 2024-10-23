@@ -92,6 +92,22 @@ void SearchNode::update_closed_node_parent(const SearchNode &parent_node,
     update_parent(parent_node, parent_op, adjusted_cost);
 }
 
+int SearchNode::get_step_count() {
+    return info.step_count;
+}
+
+void SearchNode::update_step_count(int new_step_count) {
+    info.step_count = new_step_count;
+}
+
+// int SearchNode::get_plan_depth() {
+//     return info.plan_depth;
+// }
+
+// void SearchNode::update_plan_depth(const SearchNode &parent_node) {
+//     info.plan_depth = parent_node.info.plan_depth + 1;
+// }
+
 void SearchNode::close() {
     assert(info.status == SearchNodeInfo::OPEN);
     info.status = SearchNodeInfo::CLOSED;
