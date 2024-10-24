@@ -119,7 +119,7 @@ void SearchAlgorithm::write_macros() {
 void SearchAlgorithm::search() {
     initialize();
     utils::CountdownTimer timer(max_time);
-    int MACRO_SEARCH_BUDGET = 1000000;
+    int MACRO_SEARCH_BUDGET = 5000;
     int counter = 0;
 
     while (status == IN_PROGRESS) {
@@ -171,8 +171,7 @@ void SearchAlgorithm::save_macro_so_far(const State &state) {
 
     saved_macros.push_back(macro);
 
-    int MAX_SAVED_MACROS_SIZE = 5760;
-    // int MAX_SAVED_MACROS_SIZE = 100;
+    int MAX_SAVED_MACROS_SIZE = 400;
 
     if ((int) saved_macros.size() > MAX_SAVED_MACROS_SIZE) {
         struct eff_size_comp{
