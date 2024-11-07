@@ -109,10 +109,227 @@ void SearchAlgorithm::set_plan(const Plan &p) {
     plan = p;
 }
 
+static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index) {
+    vector<FactProxy> preconds;
+    vector<Effect> effects;
+
+    for (std::vector<OperatorProxy>::size_type op_idx = 0; op_idx < sequence.size(); ++op_idx) {
+        OperatorProxy op = sequence[op_idx];
+        vector<FactProxy> posts;
+        for (Effect eff: effects) {
+            posts.push_back(eff.fact);
+        }
+
+        vector<FactProxy> guaranteed_facts = posts;
+
+        // Getting guaranteed_facts: all facts in posts and facts in preconds whose respective vars aren't in posts
+        vector<int> post_vars;
+        for (FactProxy pair: posts) {
+            post_vars.push_back(pair.get_pair().var);
+        }
+        for (FactProxy precond: preconds) {
+            if (std::find(post_vars.begin(), post_vars.end(), precond.get_pair().var) == post_vars.end()) {
+                guaranteed_facts.push_back(precond);
+            }
+        }
+
+        for (FactProxy precond: op.get_preconditions()) {
+            // Include precond in overall preconds
+            // if this fact has not been satisfied by the prev operator's post
+            // and is not already in preconds
+            bool is_fact_in_posts = std::find(posts.begin(), posts.end(), precond) != posts.end();
+            bool is_fact_in_preconds = std::find(preconds.begin(), preconds.end(), precond) != preconds.end();
+            if (!is_fact_in_posts && !is_fact_in_preconds) {
+                preconds.push_back(precond);
+            }
+        }
+
+        bool has_preconds = preconds.size() > 0;
+        if (!has_preconds) {
+            vector<Effect> updated_effects;
+            for (EffectProxy op_eff : op.get_effects()) {
+                vector<FactProxy> eff_conds;
+                for (FactProxy conds : op_eff.get_conditions()) {
+                    eff_conds.push_back(conds);
+                }
+
+                Effect eff = Effect(op_eff.get_fact(), eff_conds);
+
+                updated_effects.push_back(eff);
+            }
+
+
+            vector<PrePost> postpres;
+            if (op_idx > 0) {
+                OperatorProxy prev_op = sequence[op_idx - 1];
+                for (EffectProxy prev_eff: prev_op.get_effects()) {
+                    vector<FactProxy> prev_eff_conds;
+                    for (FactProxy cond : prev_eff.get_conditions()) {
+                        prev_eff_conds.push_back(cond);
+                    }
+                    postpres.push_back({prev_eff.get_fact(), prev_eff_conds});
+                }
+            }
+
+            for (Effect &eff: updated_effects) {
+                for (PrePost pp: postpres) {
+                    if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
+                        // std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
+                        eff.conditions = pp.pres;
+                        break;
+                    };
+                }
+            }
+
+            vector<vector<FactProxy>> included_effconds;
+
+            for (EffectProxy eff: op.get_effects()) {
+                vector<FactProxy> eff_conds;
+                for (FactProxy eff_cond : eff.get_conditions()) {
+                    eff_conds.push_back(eff_cond);
+                }
+                included_effconds.push_back(eff_conds);
+            }
+
+            for (Effect old_eff: effects) {
+                if (std::find(included_effconds.begin(), included_effconds.end(), old_eff.conditions) == included_effconds.end()) {
+                    updated_effects.push_back(old_eff);
+                    included_effconds.push_back(old_eff.conditions);
+                }
+            }
+
+            effects = updated_effects;
+        } else {
+            for (EffectProxy eff: op.get_effects()) {
+                // Check whether any effect condition is violated
+                int count_violated = 0;
+                for (FactProxy g_fact: guaranteed_facts) {
+                    for (FactProxy c_fact: eff.get_conditions()) {
+                        if (g_fact.get_pair().var == c_fact.get_pair().var && g_fact.get_pair().value != c_fact.get_pair().value) {
+                            ++count_violated;
+                            break;
+                        }
+                    }
+                }
+
+                // Run post only if the effect's conditions are satisfied
+                // Note that macro is still valid even if these conditions are NOT satisfied
+                // because these conditions are just to determine whether this particular effect can run
+                if (count_violated == 0) {
+                    vector<Effect> new_effects;
+                    for (Effect m_eff: effects) {
+                        if (m_eff.fact.get_pair().var != eff.get_fact().get_pair().var) {
+                            new_effects.push_back(m_eff);
+                        }
+                    }
+
+                    vector<FactProxy> eff_conds;
+                    for (FactProxy conds : eff.get_conditions()) {
+                        eff_conds.push_back(conds);
+                    }
+
+                    Effect exp_eff = Effect(eff.get_fact(), eff_conds);
+
+                    new_effects.push_back(exp_eff);
+                    effects = new_effects;
+                }
+            }
+        }
+    }
+
+    vector<FactProxy> posts;
+    for (Effect eff: effects) {
+        posts.push_back(eff.fact);
+    }
+    vector<int> post_vars;
+    for (FactProxy fact: posts) {
+        post_vars.push_back(fact.get_pair().var);
+    }
+
+    vector<FactProxy> prevails;
+    for (FactProxy precond: preconds) {
+        if (std::find(posts.begin(), posts.end(), precond) != posts.end()) {
+            prevails.push_back(precond);
+        } else if (std::find(post_vars.begin(), post_vars.end(), precond.get_pair().var) == post_vars.end()) {
+            prevails.push_back(precond);
+        }
+    }
+
+    vector<FactProxy> new_preconds;
+    for (FactProxy pair: preconds) {
+        if (std::find(prevails.begin(), prevails.end(), pair) == prevails.end()) {
+            new_preconds.push_back(pair);
+        }
+    }
+
+    vector<Effect> new_effects;
+    for (Effect eff: effects) {
+        if (std::find(prevails.begin(), prevails.end(), eff.fact) == prevails.end()) {
+            new_effects.push_back(eff);
+        }
+    }
+
+    ComposedMacro macro;
+    macro.preconditions = {};
+    macro.effects = new_effects;
+    macro.cost = 1;
+    macro.name = "macro" + to_string(op_index);
+    macro.is_an_axiom = false;
+
+    // In downward, prevails come first before non-prevail preconds in the preconditions field of each operator
+    for (FactProxy prevail: prevails) {
+        macro.preconditions.push_back(prevail);
+    }
+    for (FactProxy precond: new_preconds) {
+        macro.preconditions.push_back(precond);
+    }
+
+    return macro;
+}
+
 void SearchAlgorithm::write_macros() {
     ofstream outfile("saved_macros.txt");
+
+    OperatorsProxy ops = task_proxy.get_operators();
+    int base_op_id = ops.size();
+
     for (Macro macro : saved_macros) {
-        outfile << macro.sequence << " (" << macro.eff_size + macro.sequence.size() << ")" << '\n';
+        vector<OperatorProxy> seq;
+
+        for (OperatorID op_id : macro.opid_sequence) {
+            OperatorProxy op = task_proxy.get_operators()[op_id];
+            seq.push_back(op);
+        }
+
+        ComposedMacro composed_macro = compose_macro(seq, base_op_id);
+
+        outfile << "begin_macro" << '\n';
+        outfile << "begin_macro_name" << '\n';
+        outfile << composed_macro.name << '\n';
+
+        outfile << "begin_macro_preconditions" << '\n';
+        for (FactProxy precond : composed_macro.preconditions) {
+            outfile << precond.get_pair() << '\n';
+        }
+
+        outfile << "begin_macro_effects" << '\n';
+        for (Effect eff : composed_macro.effects) {
+            outfile << "begin_eff_conditions" << '\n';
+            for (FactProxy cond : eff.conditions) {
+                outfile << cond.get_pair() << '\n';
+            }
+
+            outfile << "begin_eff_fact" << '\n';
+            outfile << eff.fact.get_pair() << '\n';
+        }
+
+
+        outfile << "begin_macro_cost" << '\n';
+        outfile << composed_macro.cost << '\n';
+        outfile << "begin_macro_isaxiom" << '\n';
+        outfile << composed_macro.is_an_axiom << '\n';
+
+        ++base_op_id;
     }
 }
 
@@ -168,6 +385,7 @@ void SearchAlgorithm::save_macro_so_far(const State &state) {
     Macro macro;
     macro.eff_size = net_eff_size;
     macro.sequence = sequence;
+    macro.opid_sequence = path;
 
     saved_macros.push_back(macro);
 

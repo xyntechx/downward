@@ -30,9 +30,31 @@ class SuccessorGenerator;
 
 enum SearchStatus {IN_PROGRESS, TIMEOUT, FAILED, SOLVED};
 
+struct PrePost {
+    FactProxy post;
+    std::vector<FactProxy> pres;
+};
+
+struct Effect {
+    FactProxy fact;
+    std::vector<FactProxy> conditions;
+
+    Effect(const FactProxy& f, const std::vector<FactProxy>& c)
+        : fact(f), conditions(c) {}
+};
+
 struct Macro {
     int eff_size;
     std::vector<std::string> sequence;
+    std::vector<OperatorID> opid_sequence;
+};
+
+struct ComposedMacro {
+    std::vector<FactProxy> preconditions;
+    std::vector<Effect> effects;
+    int cost;
+    std::string name;
+    bool is_an_axiom;
 };
 
 class SearchAlgorithm {
