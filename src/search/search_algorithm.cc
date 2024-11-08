@@ -57,7 +57,10 @@ SearchAlgorithm::SearchAlgorithm(
       cost_type(cost_type),
       is_unit_cost(task_properties::is_unit_cost(task_proxy)),
       max_time(max_time),
-      saved_macros({}) {
+      saved_macros({}),
+      is_macro_learning(false),
+      macro_learning_budget(0),
+      num_macros(0) {
     if (bound < 0) {
         cerr << "error: negative cost bound " << bound << endl;
         utils::exit_with(ExitCode::SEARCH_INPUT_ERROR);
@@ -317,10 +320,15 @@ void SearchAlgorithm::write_macros() {
     }
 }
 
+void SearchAlgorithm::configure_macro_learning_args(int Bm, int Nm) {
+    is_macro_learning = true;
+    macro_learning_budget = Bm;
+    num_macros = Nm;
+}
+
 void SearchAlgorithm::search() {
     initialize();
     utils::CountdownTimer timer(max_time);
-    int MACRO_SEARCH_BUDGET = 5000;
     int counter = 0;
 
     while (status == IN_PROGRESS) {
@@ -331,16 +339,18 @@ void SearchAlgorithm::search() {
             break;
         }
 
-        ++counter;
-        if (counter == MACRO_SEARCH_BUDGET) {
-            write_macros();
-            break;
+        if (is_macro_learning) {
+            ++counter;
+            if (counter == macro_learning_budget) {
+                write_macros();
+                break;
+            }
         }
     }
     // TODO: Revise when and which search times are logged.
     log << "Actual search time: " << timer.get_elapsed_time() << endl;
 
-    write_macros();
+    if (is_macro_learning) write_macros();
 }
 
 void SearchAlgorithm::save_macro_so_far(const State &state) {
@@ -373,9 +383,7 @@ void SearchAlgorithm::save_macro_so_far(const State &state) {
 
     saved_macros.push_back(macro);
 
-    int MAX_SAVED_MACROS_SIZE = 400;
-
-    if ((int) saved_macros.size() > MAX_SAVED_MACROS_SIZE) {
+    if ((int) saved_macros.size() > num_macros) {
         struct eff_size_comp{
             bool operator()(const Macro& a, const Macro& b) const {
                 return a.eff_size + a.sequence.size() < b.eff_size + b.sequence.size(); // max heap to easily remove worst macro

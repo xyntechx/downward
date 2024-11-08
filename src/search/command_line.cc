@@ -84,6 +84,9 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
     string plan_filename = "sas_plan";
     int num_previously_generated_plans = 0;
     bool is_part_of_anytime_portfolio = false;
+    bool is_macro_learning = false;
+    int macro_bm = 0;
+    int macro_nm = 0;
 
     using SearchPtr = shared_ptr<SearchAlgorithm>;
     SearchPtr search_algorithm = nullptr;
@@ -149,12 +152,39 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
             num_previously_generated_plans = parse_int_arg(arg, args[i]);
             if (num_previously_generated_plans < 0)
                 input_error("argument for --internal-previous-portfolio-plans must be positive");
+        } else if (arg == "--search-mode") {
+            ++i;
+            if (args[i] == "solution") {
+                is_macro_learning = false;
+            } else if (args[i] == "macro") {
+                is_macro_learning = true;
+            } else {
+                input_error("Please enter either `solution` or `macro` for --search-mode");
+            }
+        } else if (arg == "--macro-bm") {
+            if (!is_macro_learning) {
+                input_error("Please enter `macro` for --search-mode to enable the --macro-bm flag");
+            }
+            ++i;
+            macro_bm = std::stoi(args[i]);
+        } else if (arg == "--macro-nm") {
+            if (!is_macro_learning) {
+                input_error("Please enter `macro` for --search-mode to enable the --macro-nm flag");
+            }
+            ++i;
+            macro_nm = std::stoi(args[i]);
         } else {
             input_error("unknown option " + arg);
         }
     }
 
     if (search_algorithm) {
+        if (is_macro_learning) {
+            if (macro_bm == 0 || macro_nm == 0) {
+                input_error("You've selected the macro learning search mode. Please specify the macro learning budget with the --macro-bm flag, and the number of macros to learn with the --macro-nm flag.");
+            }
+            search_algorithm->configure_macro_learning_args(macro_bm, macro_nm);
+        }
         PlanManager &plan_manager = search_algorithm->get_plan_manager();
         plan_manager.set_plan_filename(plan_filename);
         plan_manager.set_num_previously_generated_plans(num_previously_generated_plans);

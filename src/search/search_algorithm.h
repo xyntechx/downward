@@ -81,6 +81,9 @@ protected:
     bool is_unit_cost;
     double max_time;
     std::vector<Macro> saved_macros;
+    bool is_macro_learning;
+    int macro_learning_budget;
+    int num_macros;
     virtual void initialize() {}
     virtual SearchStatus step() = 0;
 
@@ -106,6 +109,7 @@ public:
     int get_bound() {return bound;}
     PlanManager &get_plan_manager() {return plan_manager;}
     std::string get_description() {return description;}
+    void configure_macro_learning_args(int Bm, int Nm);
 };
 
 /*
