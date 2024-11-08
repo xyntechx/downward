@@ -86,5 +86,5 @@ with open(args.sas_src) as sas_file:
             new_sas_content.append(sas_content[i])
 
 
-with open(f"{'/'.join(args.sas_src.split('/')[:-1])}/with_macros.sas", "w") as sas_file:
+with open(f"{'/'.join(args.sas_src.split('/')[:-1])}/with_macros_{args.sas_src.split('/')[-1][-7:-4]}.sas", "w") as sas_file:
     sas_file.write('\n'.join(new_sas_content))
