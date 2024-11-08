@@ -58,11 +58,12 @@ new_sas_content = []
 
 with open(args.sas_src) as sas_file:
     sas_content = sas_file.read().strip().split("\n")
+    has_inserted_macro = False
 
     for i in range(len(sas_content)):
         if i > 0 and sas_content[i-1] == "end_goal":
             new_sas_content.append(str(int(sas_content[i]) + len(macros)))
-        elif sas_content[i] == "begin_operator":
+        elif sas_content[i] == "begin_operator" and not has_inserted_macro:
             for macro in macros:
                 new_sas_content.append("begin_operator")
                 new_sas_content.append(macro["name"])
@@ -82,6 +83,8 @@ with open(args.sas_src) as sas_file:
                     new_sas_content.append(line)
                 new_sas_content.append(str(macro["cost"]))
                 new_sas_content.append("end_operator")
+            new_sas_content.append("begin_operator")
+            has_inserted_macro = True
         else:
             new_sas_content.append(sas_content[i])
 
