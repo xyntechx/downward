@@ -50,6 +50,7 @@ struct Macro {
 };
 
 struct ComposedMacro {
+    std::vector<FactProxy> prevails;
     std::vector<FactProxy> preconditions;
     std::vector<Effect> effects;
     int cost;

@@ -174,7 +174,6 @@ static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index)
             for (Effect &eff: updated_effects) {
                 for (PrePost pp: postpres) {
                     if (std::find(eff.conditions.begin(), eff.conditions.end(), pp.post) != eff.conditions.end()) {
-                        // std::cout << pp.pres << pp.post << ' ' << eff.conditions << eff.fact << '\n';
                         eff.conditions = pp.pres;
                         break;
                     };
@@ -201,38 +200,22 @@ static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index)
             effects = updated_effects;
         } else {
             for (EffectProxy eff: op.get_effects()) {
-                // Check whether any effect condition is violated
-                int count_violated = 0;
-                for (FactProxy g_fact: guaranteed_facts) {
-                    for (FactProxy c_fact: eff.get_conditions()) {
-                        if (g_fact.get_pair().var == c_fact.get_pair().var && g_fact.get_pair().value != c_fact.get_pair().value) {
-                            ++count_violated;
-                            break;
-                        }
+                vector<Effect> new_effects;
+                for (Effect m_eff: effects) {
+                    if (m_eff.fact.get_pair().var != eff.get_fact().get_pair().var) {
+                        new_effects.push_back(m_eff);
                     }
                 }
 
-                // Run post only if the effect's conditions are satisfied
-                // Note that macro is still valid even if these conditions are NOT satisfied
-                // because these conditions are just to determine whether this particular effect can run
-                if (count_violated == 0) {
-                    vector<Effect> new_effects;
-                    for (Effect m_eff: effects) {
-                        if (m_eff.fact.get_pair().var != eff.get_fact().get_pair().var) {
-                            new_effects.push_back(m_eff);
-                        }
-                    }
-
-                    vector<FactProxy> eff_conds;
-                    for (FactProxy conds : eff.get_conditions()) {
-                        eff_conds.push_back(conds);
-                    }
-
-                    Effect exp_eff = Effect(eff.get_fact(), eff_conds);
-
-                    new_effects.push_back(exp_eff);
-                    effects = new_effects;
+                vector<FactProxy> eff_conds;
+                for (FactProxy conds : eff.get_conditions()) {
+                    eff_conds.push_back(conds);
                 }
+
+                Effect exp_eff = Effect(eff.get_fact(), eff_conds);
+
+                new_effects.push_back(exp_eff);
+                effects = new_effects;
             }
         }
     }
@@ -270,19 +253,12 @@ static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index)
     }
 
     ComposedMacro macro;
-    macro.preconditions = {};
-    macro.effects = new_effects;
+    macro.prevails = prevails;
+    macro.preconditions = new_preconds; // tied to each effect (these conds must be true for operator to fire)
+    macro.effects = new_effects; // post and eff condition(s) of each effect
     macro.cost = 1;
     macro.name = "macro" + to_string(op_index);
     macro.is_an_axiom = false;
-
-    // In downward, prevails come first before non-prevail preconds in the preconditions field of each operator
-    for (FactProxy prevail: prevails) {
-        macro.preconditions.push_back(prevail);
-    }
-    for (FactProxy precond: new_preconds) {
-        macro.preconditions.push_back(precond);
-    }
 
     return macro;
 }
@@ -307,13 +283,21 @@ void SearchAlgorithm::write_macros() {
         outfile << "begin_macro_name" << '\n';
         outfile << composed_macro.name << '\n';
 
-        outfile << "begin_macro_preconditions" << '\n';
-        for (FactProxy precond : composed_macro.preconditions) {
-            outfile << precond.get_pair() << '\n';
+        outfile << "begin_macro_prevails" << '\n';
+        for (FactProxy prevail : composed_macro.prevails) {
+            outfile << prevail.get_pair() << '\n';
         }
 
         outfile << "begin_macro_effects" << '\n';
         for (Effect eff : composed_macro.effects) {
+            outfile << "begin_eff_precondition" << '\n';
+            for (FactProxy cond : composed_macro.preconditions) {
+                if (cond.get_pair().var == eff.fact.get_pair().var) {
+                    outfile << cond.get_pair() << '\n';
+                    break;
+                }
+            }
+
             outfile << "begin_eff_conditions" << '\n';
             for (FactProxy cond : eff.conditions) {
                 outfile << cond.get_pair() << '\n';
