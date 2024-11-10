@@ -84,6 +84,10 @@ int DelegatingTask::convert_operator_index(
     return parent->convert_operator_index(parent_index, ancestor_task);
 }
 
+void DelegatingTask::add_operator(ComposedMacro macro) {
+    parent->add_operator(macro);
+}
+
 int DelegatingTask::get_num_axioms() const {
     return parent->get_num_axioms();
 }

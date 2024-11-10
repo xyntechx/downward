@@ -38,6 +38,7 @@ struct ExplicitEffect {
     vector<FactPair> conditions;
 
     ExplicitEffect(int var, int value, vector<FactPair> &&conditions);
+    ExplicitEffect(FactPair f, vector<FactPair> c);
 };
 
 
@@ -50,6 +51,7 @@ struct ExplicitOperator {
 
     void read_pre_post(istream &in);
     ExplicitOperator(istream &in, bool is_an_axiom, bool use_metric);
+    ExplicitOperator(vector<FactPair> preconditions, vector<ExplicitEffect> effects, int cost, string name, bool is_an_axiom);
 };
 
 
@@ -96,6 +98,7 @@ public:
         int op_index, int eff_index, bool is_axiom) const override;
     virtual int convert_operator_index(
         int index, const AbstractTask *ancestor_task) const override;
+    virtual void add_operator(ComposedMacro macro) override;
 
     virtual int get_num_axioms() const override;
 
@@ -181,6 +184,12 @@ ExplicitEffect::ExplicitEffect(
 }
 
 
+ExplicitEffect::ExplicitEffect(
+    FactPair f, vector<FactPair> c)
+    : fact(f), conditions(c) {
+}
+
+
 void ExplicitOperator::read_pre_post(istream &in) {
     vector<FactPair> conditions = read_facts(in);
     int var, value_pre, value_post;
@@ -189,6 +198,14 @@ void ExplicitOperator::read_pre_post(istream &in) {
         preconditions.emplace_back(var, value_pre);
     }
     effects.emplace_back(var, value_post, move(conditions));
+}
+
+ExplicitOperator::ExplicitOperator(vector<FactPair> preconditions, vector<ExplicitEffect> effects, int cost, string name, bool is_an_axiom) {
+    this->preconditions = preconditions;
+    this->effects = effects;
+    this->cost = cost;
+    this->name = name;
+    this->is_an_axiom = is_an_axiom;
 }
 
 ExplicitOperator::ExplicitOperator(istream &in, bool is_an_axiom, bool use_metric)
@@ -460,6 +477,27 @@ FactPair RootTask::get_operator_effect_condition(
 FactPair RootTask::get_operator_effect(
     int op_index, int eff_index, bool is_axiom) const {
     return get_effect(op_index, eff_index, is_axiom).fact;
+}
+
+void RootTask::add_operator(ComposedMacro macro) {
+    vector<FactPair> preconditions;
+    for (FactPair f : macro.prevails) {
+        preconditions.push_back(f);
+    }
+    for (FactPair f : macro.preconditions) {
+        preconditions.push_back(f);
+    }
+
+    vector<ExplicitEffect> effects;
+
+    for (EffectReal e : macro.effects) {
+        ExplicitEffect eff(e.fact, e.conditions);
+        effects.push_back(eff);
+    }
+
+    ExplicitOperator new_op(preconditions, effects, macro.cost, macro.name, macro.is_an_axiom);
+
+    RootTask::operators.push_back(new_op);
 }
 
 int RootTask::convert_operator_index(

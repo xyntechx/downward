@@ -48,6 +48,7 @@ public:
     virtual int convert_operator_index_to_parent(int index) const {
         return index;
     }
+    virtual void add_operator(ComposedMacro macro) override;
 
     virtual int get_num_axioms() const override;
 

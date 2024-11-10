@@ -39,6 +39,23 @@ struct FactPair {
     static const FactPair no_fact;
 };
 
+struct EffectReal {
+    FactPair fact;
+    std::vector<FactPair> conditions;
+
+    EffectReal(const FactPair& f, const std::vector<FactPair>& c)
+        : fact(f), conditions(c) {}
+};
+
+struct ComposedMacro {
+    std::vector<FactPair> prevails;
+    std::vector<FactPair> preconditions;
+    std::vector<EffectReal> effects;
+    int cost;
+    std::string name;
+    bool is_an_axiom;
+};
+
 std::ostream &operator<<(std::ostream &os, const FactPair &fact_pair);
 
 namespace utils {
@@ -73,6 +90,7 @@ public:
         int op_index, int eff_index, int cond_index, bool is_axiom) const = 0;
     virtual FactPair get_operator_effect(
         int op_index, int eff_index, bool is_axiom) const = 0;
+    virtual void add_operator(ComposedMacro macro) = 0;
 
     /*
       Convert an operator index from this task, C (child), into an operator index

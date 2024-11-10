@@ -112,12 +112,16 @@ void SearchAlgorithm::set_plan(const Plan &p) {
     plan = p;
 }
 
-static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index) {
+static ComposedMacro compose_macro(vector<OperatorProxy> sequence) {
     vector<FactProxy> preconds;
     vector<Effect> effects;
+    string macro_name;
 
     for (std::vector<OperatorProxy>::size_type op_idx = 0; op_idx < sequence.size(); ++op_idx) {
         OperatorProxy op = sequence[op_idx];
+
+        macro_name += op.get_name() + ' ';
+
         vector<FactProxy> posts;
         for (Effect eff: effects) {
             posts.push_back(eff.fact);
@@ -256,67 +260,44 @@ static ComposedMacro compose_macro(vector<OperatorProxy> sequence, int op_index)
     }
 
     ComposedMacro macro;
-    macro.prevails = prevails;
-    macro.preconditions = new_preconds; // tied to each effect (these conds must be true for operator to fire)
-    macro.effects = new_effects; // post and eff condition(s) of each effect
+
+    for (FactProxy f : prevails) {
+        macro.prevails.push_back(f.get_pair());
+    }
+
+    for (FactProxy f : new_preconds) {
+        macro.preconditions.push_back(f.get_pair());
+    }
+
+    for (Effect eff : new_effects) {
+        vector<FactPair> effconds;
+        for (FactProxy condp : eff.conditions) {
+            effconds.push_back(condp.get_pair());
+        }
+        EffectReal effreal(eff.fact.get_pair(), effconds);
+        macro.effects.push_back(effreal);
+    }
+
     macro.cost = 1;
-    macro.name = "macro" + to_string(op_index);
+    macro.name = "macro " + macro_name;
     macro.is_an_axiom = false;
 
     return macro;
 }
 
 void SearchAlgorithm::write_macros() {
-    ofstream outfile("saved_macros.txt");
-
     OperatorsProxy ops = task_proxy.get_operators();
-    int base_op_id = ops.size();
 
     for (Macro macro : saved_macros) {
         vector<OperatorProxy> seq;
 
         for (OperatorID op_id : macro.opid_sequence) {
-            OperatorProxy op = task_proxy.get_operators()[op_id];
+            OperatorProxy op = ops[op_id];
             seq.push_back(op);
         }
 
-        ComposedMacro composed_macro = compose_macro(seq, base_op_id);
-
-        outfile << "begin_macro" << '\n';
-        outfile << "begin_macro_name" << '\n';
-        outfile << composed_macro.name << '\n';
-
-        outfile << "begin_macro_prevails" << '\n';
-        for (FactProxy prevail : composed_macro.prevails) {
-            outfile << prevail.get_pair() << '\n';
-        }
-
-        outfile << "begin_macro_effects" << '\n';
-        for (Effect eff : composed_macro.effects) {
-            outfile << "begin_eff_precondition" << '\n';
-            for (FactProxy cond : composed_macro.preconditions) {
-                if (cond.get_pair().var == eff.fact.get_pair().var) {
-                    outfile << cond.get_pair() << '\n';
-                    break;
-                }
-            }
-
-            outfile << "begin_eff_conditions" << '\n';
-            for (FactProxy cond : eff.conditions) {
-                outfile << cond.get_pair() << '\n';
-            }
-
-            outfile << "begin_eff_fact" << '\n';
-            outfile << eff.fact.get_pair() << '\n';
-        }
-
-
-        outfile << "begin_macro_cost" << '\n';
-        outfile << composed_macro.cost << '\n';
-        outfile << "begin_macro_isaxiom" << '\n';
-        outfile << composed_macro.is_an_axiom << '\n';
-
-        ++base_op_id;
+        ComposedMacro composed_macro = compose_macro(seq);
+        task->add_operator(composed_macro);
     }
 }
 
@@ -342,7 +323,6 @@ void SearchAlgorithm::search() {
         if (is_macro_learning) {
             ++counter;
             if (counter == macro_learning_budget) {
-                write_macros();
                 break;
             }
         }

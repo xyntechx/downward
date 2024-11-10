@@ -49,15 +49,6 @@ struct Macro {
     std::vector<OperatorID> opid_sequence;
 };
 
-struct ComposedMacro {
-    std::vector<FactProxy> prevails;
-    std::vector<FactProxy> preconditions;
-    std::vector<Effect> effects;
-    int cost;
-    std::string name;
-    bool is_an_axiom;
-};
-
 class SearchAlgorithm {
     std::string description;
     SearchStatus status;
