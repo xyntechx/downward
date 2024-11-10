@@ -34,6 +34,20 @@ static int parse_int_arg(const string &name, const string &value) {
     }
 }
 
+
+static vector<string> split_str(const string& s, const string& delimiter) {
+    vector<string> tokens;
+    size_t pos = 0;
+    size_t last = 0;
+    while ((pos = s.find(delimiter, last)) != string::npos) {
+        tokens.push_back(s.substr(last, pos - last));
+        last = pos + delimiter.length();
+    }
+    tokens.push_back(s.substr(last));
+    return tokens;
+}
+
+
 static vector<string> replace_old_style_predefinitions(const vector<string> &args) {
     vector<string> new_args;
     int num_predefinitions = 0;
@@ -152,27 +166,14 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
             num_previously_generated_plans = parse_int_arg(arg, args[i]);
             if (num_previously_generated_plans < 0)
                 input_error("argument for --internal-previous-portfolio-plans must be positive");
-        } else if (arg == "--search-mode") {
+        } else if (arg == "--learn-macros") {
+            if (is_last)
+                input_error("missing argument after --learn-macros");
             ++i;
-            if (args[i] == "solution") {
-                is_macro_learning = false;
-            } else if (args[i] == "macro") {
-                is_macro_learning = true;
-            } else {
-                input_error("Please enter either `solution` or `macro` for --search-mode");
-            }
-        } else if (arg == "--macro-bm") {
-            if (!is_macro_learning) {
-                input_error("Please enter `macro` for --search-mode to enable the --macro-bm flag");
-            }
-            ++i;
-            macro_bm = std::stoi(args[i]);
-        } else if (arg == "--macro-nm") {
-            if (!is_macro_learning) {
-                input_error("Please enter `macro` for --search-mode to enable the --macro-nm flag");
-            }
-            ++i;
-            macro_nm = std::stoi(args[i]);
+            is_macro_learning = true;
+            vector<string> macro_args = split_str(args[i], ",");
+            macro_bm = stoi(macro_args[0]);
+            macro_nm = stoi(macro_args[1]);
         } else {
             input_error("unknown option " + arg);
         }
@@ -180,9 +181,6 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
 
     if (search_algorithm) {
         if (is_macro_learning) {
-            if (macro_bm == 0 || macro_nm == 0) {
-                input_error("You've selected the macro learning search mode. Please specify the macro learning budget with the --macro-bm flag, and the number of macros to learn with the --macro-nm flag.");
-            }
             search_algorithm->configure_macro_learning_args(macro_bm, macro_nm);
         }
         PlanManager &plan_manager = search_algorithm->get_plan_manager();
