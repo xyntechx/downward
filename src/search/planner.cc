@@ -35,6 +35,9 @@ int main(int argc, const char **argv) {
 
 
         utils::Timer search_timer;
+        if (search_algorithm->get_is_macro_learning()) {
+            search_algorithm->learn_macros();
+        }
         search_algorithm->search();
         search_timer.stop();
         utils::g_timer.stop();

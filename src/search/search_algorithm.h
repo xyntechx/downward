@@ -95,6 +95,8 @@ public:
     SearchStatus get_status() const;
     const Plan &get_plan() const;
     void search();
+    void learn_macros();
+    bool get_is_macro_learning() {return is_macro_learning;}
     const SearchStatistics &get_statistics() const {return statistics;}
     void set_bound(int b) {bound = b;}
     int get_bound() {return bound;}

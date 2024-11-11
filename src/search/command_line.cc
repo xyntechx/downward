@@ -166,14 +166,24 @@ static shared_ptr<SearchAlgorithm> parse_cmd_line_aux(const vector<string> &args
             num_previously_generated_plans = parse_int_arg(arg, args[i]);
             if (num_previously_generated_plans < 0)
                 input_error("argument for --internal-previous-portfolio-plans must be positive");
-        } else if (arg == "--learn-macros") {
+        } else if (arg == "--macros") {
             if (is_last)
-                input_error("missing argument after --learn-macros");
+                input_error("missing argument after --macros");
             ++i;
             is_macro_learning = true;
             vector<string> macro_args = split_str(args[i], ",");
-            macro_bm = stoi(macro_args[0]);
-            macro_nm = stoi(macro_args[1]);
+            vector<string> first = split_str(macro_args[0], "=");
+            vector<string> second = split_str(macro_args[1], "=");
+
+            if (first[0] == "b" && second[0] == "n") {
+                macro_bm = stoi(first[1]);
+                macro_nm = stoi(second[1]);
+            } else if (first[0] == "n" && second[0] == "b") {
+                macro_bm = stoi(second[1]);
+                macro_nm = stoi(first[1]);
+            } else {
+                input_error("argument after --macros must be in the form of 'b=int,n=int'");
+            }
         } else {
             input_error("unknown option " + arg);
         }

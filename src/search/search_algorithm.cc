@@ -307,7 +307,7 @@ void SearchAlgorithm::configure_macro_learning_args(int Bm, int Nm) {
     num_macros = Nm;
 }
 
-void SearchAlgorithm::search() {
+void SearchAlgorithm::learn_macros() {
     initialize();
     utils::CountdownTimer timer(max_time);
     int counter = 0;
@@ -320,17 +320,31 @@ void SearchAlgorithm::search() {
             break;
         }
 
-        if (is_macro_learning) {
-            ++counter;
-            if (counter == macro_learning_budget) {
-                break;
-            }
+        ++counter;
+        if (counter == macro_learning_budget) {
+            break;
+        }
+    }
+    // TODO: Revise when and which search times are logged.
+    log << "Actual macro learning time: " << timer.get_elapsed_time() << endl;
+
+    write_macros();
+}
+
+void SearchAlgorithm::search() {
+    initialize();
+    utils::CountdownTimer timer(max_time);
+
+    while (status == IN_PROGRESS) {
+        status = step();
+        if (timer.is_expired()) {
+            log << "Time limit reached. Abort search." << endl;
+            status = TIMEOUT;
+            break;
         }
     }
     // TODO: Revise when and which search times are logged.
     log << "Actual search time: " << timer.get_elapsed_time() << endl;
-
-    if (is_macro_learning) write_macros();
 }
 
 void SearchAlgorithm::save_macro_so_far(const State &state) {
