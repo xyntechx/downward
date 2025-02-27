@@ -11,7 +11,7 @@ Vagrant.configure("2") do |config|
     v.memory = 2048
   end
 
-  config.vm.box = "ubuntu/noble64"
+  config.vm.box = "ubuntu/jammy64"
 
   # To compile the planner with support for CPLEX, download the 64-bit Linux
   # installer of CPLEX 22.1.1 and set the environment variable
@@ -20,7 +20,7 @@ Vagrant.configure("2") do |config|
   provision_env = {}
   if !ENV["DOWNWARD_LP_INSTALLERS"].nil?
       cplex_installer = ENV["DOWNWARD_LP_INSTALLERS"] + "/cplex_studio2211.linux_x86_64.bin"
-      if File.exists?(cplex_installer)
+      if File.file?(cplex_installer)
           config.vm.synced_folder ENV["DOWNWARD_LP_INSTALLERS"], "/lp", :mount_options => ["ro"]
           provision_env["CPLEX_INSTALLER"] = "/lp/" + File.basename(cplex_installer)
       end
@@ -65,7 +65,7 @@ Vagrant.configure("2") do |config|
     cd /home/vagrant
 
     if ! [ -e downward ] ; then
-        git clone --branch TAG https://github.com/aibasel/downward.git downward
+        git clone --branch BRANCH https://github.com/aibasel/downward.git downward
         ./downward/build.py release debug
         chown -R vagrant.vagrant downward
     fi

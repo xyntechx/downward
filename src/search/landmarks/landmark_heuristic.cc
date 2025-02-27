@@ -14,12 +14,10 @@ using namespace std;
 
 namespace landmarks {
 LandmarkHeuristic::LandmarkHeuristic(
-    tasks::AxiomHandlingType axioms, bool use_preferred_operators,
+    bool use_preferred_operators,
     const shared_ptr<AbstractTask> &transform, bool cache_estimates,
     const string &description, utils::Verbosity verbosity)
-    : Heuristic(tasks::get_default_value_axioms_task_if_needed(
-                    transform, axioms),
-                cache_estimates, description, verbosity),
+    : Heuristic(transform, cache_estimates, description, verbosity),
       use_preferred_operators(use_preferred_operators),
       successor_generator(nullptr) {
 }
@@ -55,6 +53,7 @@ void LandmarkHeuristic::initialize(
     }
 
     if (use_preferred_operators) {
+        compute_landmarks_achieved_by_fact();
         /* Ideally, we should reuse the successor generator of the main
            task in cases where it's compatible. See issue564. */
         successor_generator =
@@ -121,29 +120,57 @@ void LandmarkHeuristic::compute_landmark_graph(
     }
 }
 
+void LandmarkHeuristic::compute_landmarks_achieved_by_fact() {
+    for (const auto &node : lm_graph->get_nodes()) {
+        const int id = node->get_id();
+        const Landmark &lm = node->get_landmark();
+        if (lm.conjunctive) {
+            /*
+              TODO: We currently have no way to declare operators preferred
+               based on conjunctive landmarks. We consider this a bug and want
+               to fix it in issue1072.
+            */
+            continue;
+        }
+        for (const auto &fact_pair : lm.facts) {
+            if (landmarks_achieved_by_fact.contains(fact_pair)) {
+                landmarks_achieved_by_fact[fact_pair].insert(id);
+            } else {
+                landmarks_achieved_by_fact[fact_pair] = {id};
+            }
+        }
+    }
+}
+
+bool LandmarkHeuristic::operator_is_preferred(
+    const OperatorProxy &op, const State &state, ConstBitsetView &future) {
+    for (EffectProxy effect : op.get_effects()) {
+        if (!does_fire(effect, state)) {
+            continue;
+        }
+        const FactPair fact_pair = effect.get_fact().get_pair();
+        if (landmarks_achieved_by_fact.contains(fact_pair)) {
+            for (const int id : landmarks_achieved_by_fact[fact_pair]) {
+                if (future.test(id)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 void LandmarkHeuristic::generate_preferred_operators(
     const State &state, ConstBitsetView &future) {
-    /*
-      Find operators that achieve future landmarks.
-      TODO: Conjunctive landmarks are ignored in *lm_graph->get_node(...)*, so
-       they are ignored when computing preferred operators. We consider this
-       a bug and want to fix it in issue1072.
-    */
+    // Find operators that achieve future landmarks.
     assert(successor_generator);
     vector<OperatorID> applicable_operators;
     successor_generator->generate_applicable_ops(state, applicable_operators);
 
-    for (OperatorID op_id : applicable_operators) {
-        OperatorProxy op = task_proxy.get_operators()[op_id];
-        EffectsProxy effects = op.get_effects();
-        for (EffectProxy effect : effects) {
-            if (!does_fire(effect, state))
-                continue;
-            FactProxy fact_proxy = effect.get_fact();
-            LandmarkNode *lm_node = lm_graph->get_node(fact_proxy.get_pair());
-            if (lm_node && future.test(lm_node->get_id())) {
-                set_preferred(op);
-            }
+    for (const OperatorID op_id : applicable_operators) {
+        const OperatorProxy &op = task_proxy.get_operators()[op_id];
+        if (operator_is_preferred(op, state, future)) {
+            set_preferred(op);
         }
     }
 }
@@ -228,7 +255,6 @@ void add_landmark_heuristic_options_to_feature(
         "prog_gn", "Use greedy-necessary ordering progression.", "true");
     feature.add_option<bool>(
         "prog_r", "Use reasonable ordering progression.", "true");
-    tasks::add_axioms_option_to_feature(feature);
     add_heuristic_options_to_feature(feature, description);
 
     feature.document_property("preferred operators",
@@ -236,8 +262,7 @@ void add_landmark_heuristic_options_to_feature(
 }
 
 tuple<shared_ptr<LandmarkFactory>, bool, bool, bool, bool,
-      tasks::AxiomHandlingType, shared_ptr<AbstractTask>, bool, string,
-      utils::Verbosity>
+      shared_ptr<AbstractTask>, bool, string, utils::Verbosity>
 get_landmark_heuristic_arguments_from_options(
     const plugins::Options &opts) {
     return tuple_cat(
@@ -247,7 +272,6 @@ get_landmark_heuristic_arguments_from_options(
             opts.get<bool>("prog_goal"),
             opts.get<bool>("prog_gn"),
             opts.get<bool>("prog_r")),
-        tasks::get_axioms_arguments_from_options(opts),
         get_heuristic_arguments_from_options(opts));
 }
 }

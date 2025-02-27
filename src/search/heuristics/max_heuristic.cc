@@ -113,21 +113,16 @@ public:
 
         document_language_support("action costs", "supported");
         document_language_support("conditional effects", "supported");
-        document_language_support(
-            "axioms",
-            "supported (in the sense that the planner won't complain -- "
-            "handling of axioms might be very stupid "
-            "and even render the heuristic unsafe)");
+        document_language_support("axioms", "supported");
 
         document_property("admissible", "yes for tasks without axioms");
         document_property("consistent", "yes for tasks without axioms");
-        document_property("safe", "yes for tasks without axioms");
+        document_property("safe", "yes");
         document_property("preferred operators", "no");
     }
 
-    virtual shared_ptr<HSPMaxHeuristic> create_component(
-        const plugins::Options &opts,
-        const utils::Context &) const override {
+    virtual shared_ptr<HSPMaxHeuristic>
+    create_component(const plugins::Options &opts) const override {
         return plugins::make_shared_from_arg_tuples<HSPMaxHeuristic>(
             relaxation_heuristic::get_relaxation_heuristic_arguments_from_options(opts)
             );

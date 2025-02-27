@@ -106,7 +106,7 @@ public:
     MergeScoringFunctionDFPFeature() : TypedFeature("dfp") {
         document_title("DFP scoring");
         document_synopsis(
-            "This scoring function computes the 'DFP' score as descrdibed in the "
+            "This scoring function computes the 'DFP' score as described in the "
             "paper \"Directed model checking with distance-preserving abstractions\" "
             "by Draeger, Finkbeiner and Podelski (SPIN 2006), adapted to planning in "
             "the following paper:" + utils::format_conference_reference(
@@ -132,7 +132,8 @@ public:
             "before_merging=false),max_states=50000,threshold_before_merge=1)\n}}}");
     }
 
-    virtual shared_ptr<MergeScoringFunctionDFP> create_component(const plugins::Options &, const utils::Context &) const override {
+    virtual shared_ptr<MergeScoringFunctionDFP>
+    create_component(const plugins::Options &) const override {
         return make_shared<MergeScoringFunctionDFP>();
     }
 };

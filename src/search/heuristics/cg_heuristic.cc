@@ -303,11 +303,7 @@ public:
 
         document_language_support("action costs", "supported");
         document_language_support("conditional effects", "supported");
-        document_language_support(
-            "axioms",
-            "supported (in the sense that the planner won't complain -- "
-            "handling of axioms might be very stupid "
-            "and even render the heuristic unsafe)");
+        document_language_support("axioms", "supported");
 
         document_property("admissible", "no");
         document_property("consistent", "no");
@@ -315,9 +311,8 @@ public:
         document_property("preferred operators", "yes");
     }
 
-    virtual shared_ptr<CGHeuristic> create_component(
-        const plugins::Options &opts,
-        const utils::Context &) const override {
+    virtual shared_ptr<CGHeuristic>
+    create_component(const plugins::Options &opts) const override {
         return plugins::make_shared_from_arg_tuples<CGHeuristic>(
             opts.get<int>("max_cache_size"),
             tasks::get_axioms_arguments_from_options(opts),
