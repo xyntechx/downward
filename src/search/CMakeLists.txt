@@ -651,6 +651,13 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME goal_count_preferred_heuristic
+    HELP "The goal-counting with preferred operators heuristic"
+    SOURCES
+        heuristics/goal_count_preferred_heuristic
+)
+
+create_fast_downward_library(
     NAME eff_size_heuristic
     HELP "The effect size heuristic"
     SOURCES
