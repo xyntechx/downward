@@ -167,6 +167,13 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME min_open_list
+    HELP "Open list that selects the sub open list with the minimum min"
+    SOURCES
+        open_lists/min_open_list
+)
+
+create_fast_downward_library(
     NAME best_first_open_list
     HELP "Open list that selects the best element according to a single evaluation function"
     SOURCES
