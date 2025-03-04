@@ -174,6 +174,20 @@ create_fast_downward_library(
 )
 
 create_fast_downward_library(
+    NAME macro_gen_open_list
+    HELP "Focused macro-generated open list (derived from best-first)"
+    SOURCES
+        open_lists/macro_gen_open_list
+)
+
+create_fast_downward_library(
+    NAME primitive_gen_open_list
+    HELP "Primitive operator-generated open list (derived from best-first)"
+    SOURCES
+        open_lists/primitive_gen_open_list
+)
+
+create_fast_downward_library(
     NAME epsilon_greedy_open_list
     HELP "Open list that chooses an entry randomly with probability epsilon"
     SOURCES

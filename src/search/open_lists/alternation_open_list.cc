@@ -21,8 +21,8 @@ class AlternationOpenList : public OpenList<Entry> {
 
     const int boost_amount;
 protected:
-    virtual void do_insertion(EvaluationContext &eval_context,
-                              const Entry &entry) override;
+    virtual void do_insertion(EvaluationContext &eval_context, const Entry &entry) override;
+    virtual void do_insertion(EvaluationContext &eval_context, const Entry &entry, const std::string op_name) override;
 
 public:
     AlternationOpenList(
@@ -58,6 +58,13 @@ void AlternationOpenList<Entry>::do_insertion(
     EvaluationContext &eval_context, const Entry &entry) {
     for (const auto &sublist : open_lists)
         sublist->insert(eval_context, entry);
+}
+
+template<class Entry>
+void AlternationOpenList<Entry>::do_insertion(
+    EvaluationContext &eval_context, const Entry &entry, const std::string op_name) {
+    for (const auto &sublist : open_lists)
+        sublist->insert(eval_context, entry, op_name);
 }
 
 template<class Entry>

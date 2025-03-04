@@ -21,8 +21,8 @@ protected:
       to be inserted is not preferred. Hence, these conditions need
       not be checked by the implementation.
     */
-    virtual void do_insertion(EvaluationContext &eval_context,
-                              const Entry &entry) = 0;
+    virtual void do_insertion(EvaluationContext &eval_context, const Entry &entry) {(void) eval_context; (void) entry;};
+    virtual void do_insertion(EvaluationContext &eval_context, const Entry &entry, const std::string op_name) {(void) eval_context; (void) entry; (void) op_name;};
 
 public:
     explicit OpenList(bool preferred_only = false);
@@ -46,6 +46,7 @@ public:
       do_insertion.
     */
     void insert(EvaluationContext &eval_context, const Entry &entry);
+    void insert(EvaluationContext &eval_context, const Entry &entry, const std::string op_name);
 
     /*
       Remove and return the entry that should be expanded next.
@@ -149,6 +150,16 @@ void OpenList<Entry>::insert(
         return;
     if (!is_dead_end(eval_context))
         do_insertion(eval_context, entry);
+}
+
+template<class Entry>
+void OpenList<Entry>::insert(
+    EvaluationContext &eval_context, const Entry &entry, const std::string op_name) {
+    if (only_preferred && !eval_context.is_preferred())
+        return;
+    if (!is_dead_end(eval_context)) {
+      do_insertion(eval_context, entry, op_name);
+    }
 }
 
 template<class Entry>

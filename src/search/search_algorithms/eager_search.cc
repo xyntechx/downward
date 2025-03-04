@@ -100,7 +100,8 @@ void EagerSearch::initialize() {
         SearchNode node = search_space.get_node(initial_state);
         node.open_initial();
 
-        open_list->insert(eval_context, initial_state.get_id());
+        if (is_macro_learning) open_list->insert(eval_context, initial_state.get_id());
+        else open_list->insert(eval_context, initial_state.get_id(), "init");
     }
 
     print_initial_evaluator_values(eval_context);
@@ -162,7 +163,8 @@ SearchStatus EagerSearch::step() {
                     continue;
                 }
                 if (new_h != old_h) {
-                    open_list->insert(eval_context, id);
+                    if (is_macro_learning) open_list->insert(eval_context, id);
+                    else open_list->insert(eval_context, id, "init");
                     continue;
                 }
             }
@@ -239,7 +241,9 @@ SearchStatus EagerSearch::step() {
             }
             succ_node.open_new_node(*node, op, get_adjusted_cost(op));
 
-            open_list->insert(succ_eval_context, succ_state.get_id());
+            if (is_macro_learning) open_list->insert(succ_eval_context, succ_state.get_id());
+            else open_list->insert(succ_eval_context, succ_state.get_id(), op.get_name());
+
             if (search_progress.check_progress(succ_eval_context)) {
                 statistics.print_checkpoint_line(succ_node.get_g());
                 reward_progress();
@@ -251,7 +255,8 @@ SearchStatus EagerSearch::step() {
                     *node, op, get_adjusted_cost(op));
                 EvaluationContext succ_eval_context(
                     succ_state, succ_node.get_g(), is_preferred, &statistics);
-                open_list->insert(succ_eval_context, succ_state.get_id());
+                if (is_macro_learning) open_list->insert(succ_eval_context, succ_state.get_id());
+                else open_list->insert(succ_eval_context, succ_state.get_id(), op.get_name());
             } else if (succ_node.is_closed() && reopen_closed_nodes) {
                 /*
                   TODO: It would be nice if we had a way to test
@@ -264,7 +269,8 @@ SearchStatus EagerSearch::step() {
                 succ_node.reopen_closed_node(*node, op, get_adjusted_cost(op));
                 EvaluationContext succ_eval_context(
                     succ_state, succ_node.get_g(), is_preferred, &statistics);
-                open_list->insert(succ_eval_context, succ_state.get_id());
+                if (is_macro_learning) open_list->insert(succ_eval_context, succ_state.get_id());
+                else open_list->insert(succ_eval_context, succ_state.get_id(), op.get_name());
             } else {
                 /*
                   If we do not reopen closed nodes, we just update the parent
