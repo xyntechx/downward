@@ -9,6 +9,8 @@
 #include <cassert>
 #include <deque>
 #include <map>
+#include <vector>
+#include <any>
 
 using namespace std;
 
@@ -29,6 +31,7 @@ public:
     MacroGenOpenList(const shared_ptr<Evaluator> &eval, bool preferred_only);
 
     virtual Entry remove_min() override;
+    virtual std::vector<std::any> remove_min_complete() override;
     virtual bool empty() const override;
     virtual void clear() override;
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
@@ -71,6 +74,22 @@ Entry MacroGenOpenList<Entry>::remove_min() {
         buckets.erase(it);
     --size;
     return result;
+}
+
+template<class Entry>
+std::vector<std::any> MacroGenOpenList<Entry>::remove_min_complete() {
+    assert(size > 0);
+    auto it = buckets.begin();
+    assert(it != buckets.end());
+    int heuristic = it->first;
+    Bucket &bucket = it->second;
+    assert(!bucket.empty());
+    Entry result = bucket.front();
+    bucket.pop_front();
+    if (bucket.empty())
+        buckets.erase(it);
+    --size;
+    return {heuristic, result};
 }
 
 template<class Entry>

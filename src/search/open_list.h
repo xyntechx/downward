@@ -5,6 +5,9 @@
 
 #include "evaluation_context.h"
 #include "operator_id.h"
+#include <vector>
+#include <any>
+// #include <stdexcept>
 
 class StateID;
 
@@ -52,6 +55,7 @@ public:
       Remove and return the entry that should be expanded next.
     */
     virtual Entry remove_min() = 0;
+    virtual std::vector<std::any> remove_min_complete() { return {}; };
 
     // Return true if the open list is empty.
     virtual bool empty() const = 0;
