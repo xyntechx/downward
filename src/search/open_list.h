@@ -55,7 +55,7 @@ public:
       Remove and return the entry that should be expanded next.
     */
     virtual Entry remove_min() = 0;
-    virtual std::vector<std::any> remove_min_complete() { return {}; };
+    virtual int peek_min_heuristic() { return 0; };
 
     // Return true if the open list is empty.
     virtual bool empty() const = 0;

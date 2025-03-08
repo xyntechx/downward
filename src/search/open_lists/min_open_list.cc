@@ -9,7 +9,6 @@
 #include <cassert>
 #include <memory>
 #include <vector>
-#include <optional>
 
 using namespace std;
 using utils::ExitCode;
@@ -19,7 +18,6 @@ template<class Entry>
 class MinOpenList : public OpenList<Entry> {
     vector<unique_ptr<OpenList<Entry>>> open_lists;
     vector<int> priorities;
-    vector<std::optional<Entry>> s_ids;
 
     const int boost_amount;
 protected:
@@ -53,7 +51,6 @@ MinOpenList<Entry>::MinOpenList(
         open_lists.push_back(factory->create_open_list<Entry>());
 
     priorities.resize(open_lists.size(), 0);
-    s_ids.resize(open_lists.size());
 }
 
 template<class Entry>
@@ -68,20 +65,6 @@ void MinOpenList<Entry>::do_insertion(
     EvaluationContext &eval_context, const Entry &entry, const std::string op_name) {
     for (const auto &sublist : open_lists)
         sublist->insert(eval_context, entry, op_name);
-
-    // for (size_t i = 0; i < open_lists.size(); ++i) {
-    //     open_lists[i]->insert(eval_context, entry, op_name);
-    // }
-
-    // int idx = op_name.find("macro") == std::string::npos ? 0 : 1;
-    // if (!s_ids[idx].has_value()) {
-    //     if (idx >= open_lists.size() || !open_lists[idx] || open_lists[idx]->empty()) {
-    //         return;
-    //     }
-    //     std::vector<std::any> res = open_lists[idx]->remove_min_complete();
-    //     priorities[idx] = std::any_cast<int>(res[0]);
-    //     s_ids[idx] = std::any_cast<Entry>(res[1]);
-    // }
 }
 
 template<class Entry>
@@ -89,8 +72,7 @@ Entry MinOpenList<Entry>::remove_min() {
     int best = -1;
     for (size_t i = 0; i < open_lists.size(); ++i) {
         if (!open_lists[i]->empty() &&
-        // if (s_ids[i].has_value() &&
-            (best == -1 || priorities[i] < priorities[best])) {
+            (best == -1 || open_lists[i]->peek_min_heuristic() < open_lists[best]->peek_min_heuristic())) {
             best = i;
         }
     }
@@ -98,13 +80,7 @@ Entry MinOpenList<Entry>::remove_min() {
     const auto &best_list = open_lists[best];
     assert(!best_list->empty());
 
-    Entry result = *s_ids[best];
-
-    std::vector<std::any> res = best_list->remove_min_complete();
-    priorities[best] = std::any_cast<int>(res[0]);
-    s_ids[best] = std::any_cast<Entry>(res[1]);
-
-    return result;
+    return best_list->remove_min();
 }
 
 template<class Entry>

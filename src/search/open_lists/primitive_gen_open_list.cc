@@ -31,7 +31,7 @@ public:
     PrimitiveGenOpenList(const shared_ptr<Evaluator> &eval, bool preferred_only);
 
     virtual Entry remove_min() override;
-    virtual std::vector<std::any> remove_min_complete() override;
+    virtual int peek_min_heuristic() override;
     virtual bool empty() const override;
     virtual void clear() override;
     virtual void get_path_dependent_evaluators(set<Evaluator *> &evals) override;
@@ -77,19 +77,12 @@ Entry PrimitiveGenOpenList<Entry>::remove_min() {
 }
 
 template<class Entry>
-std::vector<std::any> PrimitiveGenOpenList<Entry>::remove_min_complete() {
+int PrimitiveGenOpenList<Entry>::peek_min_heuristic() {
     assert(size > 0);
     auto it = buckets.begin();
     assert(it != buckets.end());
     int heuristic = it->first;
-    Bucket &bucket = it->second;
-    assert(!bucket.empty());
-    Entry result = bucket.front();
-    bucket.pop_front();
-    if (bucket.empty())
-        buckets.erase(it);
-    --size;
-    return {heuristic, result};
+    return heuristic;
 }
 
 template<class Entry>
